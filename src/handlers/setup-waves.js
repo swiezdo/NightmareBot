@@ -8,10 +8,26 @@ import {
   createEmptyDraft,
 } from '../data/rotation.js';
 import { getSession, saveSession, deleteSession } from '../db/session.js';
+import { stripFlowSuffix } from '../wizard/wave-custom-id.js';
 import { buildMessagePayload } from '../wizard/ui.js';
 import { setWaveCell } from '../wizard/grid.js';
 import { writeTsushimaFile } from '../wizard/write-tsushima.js';
+import { loadDraftForEdit } from '../wizard/read-tsushima.js';
 import { GRID_PAGE_COUNT, SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
+
+const DISCORD_CONTENT_MAX = 2000;
+
+/**
+ * @param {string} [prefix]
+ * @param {{ content: string, components: import('discord.js').ActionRowBuilder[] }} payload
+ */
+function mergePayloadContent(prefix, payload) {
+  let content = prefix ? `${prefix}\n\n${payload.content}` : payload.content;
+  if (content.length > DISCORD_CONTENT_MAX) {
+    content = `${content.slice(0, DISCORD_CONTENT_MAX - 1)}…`;
+  }
+  return { content, components: payload.components };
+}
 
 /** @param {string | undefined} raw */
 export function parseAllowedUserIds(raw) {
@@ -47,14 +63,21 @@ async function ensureDm(interaction, allowed) {
   return false;
 }
 
-function newSession(userId, game) {
+/**
+ * @param {string} userId
+ * @param {string} game
+ * @param {{ draft?: object, sourceCommand?: string }} [options]
+ */
+function newSession(userId, game, options = {}) {
+  const sourceCommand = options.sourceCommand ?? 'setup-waves';
   return {
     userId,
     game,
+    sourceCommand,
     locale: null,
     messageId: null,
     channelId: null,
-    draft: createEmptyDraft(),
+    draft: options.draft ?? createEmptyDraft(),
     uiStep: 'lang',
     gridPage: 0,
     pendingWave: null,
@@ -88,8 +111,8 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       return;
     }
 
-    const prev = getSession(interaction.user.id);
-    const session = newSession(interaction.user.id, game);
+    const prev = getSession(interaction.user.id, 'setup-waves');
+    const session = newSession(interaction.user.id, game, { sourceCommand: 'setup-waves' });
     if (prev?.messageId && prev?.channelId) {
       session.messageId = prev.messageId;
       session.channelId = prev.channelId;
@@ -120,9 +143,61 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     return;
   }
 
+  if (interaction.isChatInputCommand() && interaction.commandName === 'edit-waves') {
+    const game = interaction.options.getString('game', true);
+    if (game !== 'tsushima') {
+      await interaction.reply({ content: t('en', 'game_not_available'), ephemeral: true });
+      return;
+    }
+
+    const loaded = loadDraftForEdit();
+    if (!loaded.ok) {
+      const loc = allowed.has(interaction.user.id) ? 'ru' : 'en';
+      const key =
+        loaded.reason === 'missing' ? 'edit_tsushima_missing' : 'edit_tsushima_invalid';
+      await interaction.reply({ content: t(loc, key), ephemeral: true });
+      return;
+    }
+
+    const prev = getSession(interaction.user.id, 'edit-waves');
+    const session = newSession(interaction.user.id, game, {
+      sourceCommand: 'edit-waves',
+      draft: loaded.draft,
+    });
+    if (prev?.messageId && prev?.channelId) {
+      session.messageId = prev.messageId;
+      session.channelId = prev.channelId;
+    }
+
+    const payload = buildMessagePayload(session, rotations);
+
+    if (session.messageId && interaction.channel?.isTextBased()) {
+      try {
+        const msg = await interaction.channel.messages.fetch(session.messageId);
+        await msg.edit(payload);
+        saveSession(session);
+        await interaction.reply({
+          content: `${t('ru', 'edit_panel_reopened')} · ${t('en', 'edit_panel_reopened')}`,
+          ephemeral: true,
+        });
+        return;
+      } catch {
+        session.messageId = null;
+        session.channelId = null;
+      }
+    }
+
+    const msg = await interaction.reply({ ...payload, fetchReply: true });
+    session.messageId = msg.id;
+    session.channelId = msg.channelId;
+    saveSession(session);
+    return;
+  }
+
   if (!interaction.isMessageComponent()) return;
 
-  let session = getSession(interaction.user.id);
+  const { id, flow } = stripFlowSuffix(interaction.customId);
+  let session = getSession(interaction.user.id, flow);
   if (!session) {
     await interaction.reply({
       content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
@@ -131,23 +206,26 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     return;
   }
 
-  const id = interaction.customId;
-
   if (id.startsWith('waves:lang:')) {
     const loc = id.endsWith(':ru') ? 'ru' : 'en';
     session.locale = loc;
-    session.uiStep = 'week';
+    session.uiStep = session.sourceCommand === 'edit-waves' ? 'grid' : 'week';
     saveSession(session);
     await interaction.deferUpdate();
     await interaction.message.edit(buildMessagePayload(session, rotations));
     return;
   }
 
-  if (interaction.isStringSelectMenu() && id === 'waves:week') {
+  if (interaction.isStringSelectMenu() && id === 'waves:week' && flow === 'setup-waves') {
     const code = interaction.values[0];
     const ctx = findWeekContext(rotations.en, rotations.ru, code);
     if (!ctx) {
+      const loc = /** @type {'en' | 'ru'} */ (session.locale);
       await interaction.deferUpdate();
+      const payload = buildMessagePayload(session, rotations);
+      await interaction.message.edit(
+        mergePayloadContent(t(loc, 'week_select_failed'), payload),
+      );
       return;
     }
     session.draft = buildDraftFromWeek(ctx);
@@ -176,7 +254,14 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     const group = Number(g);
     const slot = Number(s);
     if (group < 1 || group > TOTAL_WAVES || slot < 1 || slot > SLOTS_PER_WAVE) {
+      const loc = /** @type {'en' | 'ru'} */ (session.locale);
       await interaction.deferUpdate();
+      try {
+        await interaction.followUp({ content: t(loc, 'invalid_wave_slot'), ephemeral: true });
+      } catch {
+        /* ignore */
+      }
+      await interaction.message.edit(buildMessagePayload(session, rotations));
       return;
     }
     session.pendingWave = group;
@@ -214,7 +299,17 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.pendingZoneIndex = zi;
     const ctx = findWeekContext(rotations.en, rotations.ru, session.draft.week);
     if (!ctx) {
+      const loc = /** @type {'en' | 'ru'} */ (session.locale);
+      session.uiStep = 'grid';
+      session.pendingWave = null;
+      session.pendingSpawn = null;
+      session.pendingZoneIndex = null;
+      saveSession(session);
       await interaction.deferUpdate();
+      const payload = buildMessagePayload(session, rotations);
+      await interaction.message.edit(
+        mergePayloadContent(t(loc, 'week_not_in_rotation'), payload),
+      );
       return;
     }
     const { enMap, ruMap } = ctx;
@@ -251,7 +346,18 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     const si = Number(id.split(':')[2]);
     const ctx = findWeekContext(rotations.en, rotations.ru, session.draft.week);
     if (!ctx || session.pendingZoneIndex == null) {
+      const loc = /** @type {'en' | 'ru'} */ (session.locale);
+      session.uiStep = 'grid';
+      session.pendingWave = null;
+      session.pendingSpawn = null;
+      session.pendingZoneIndex = null;
+      saveSession(session);
       await interaction.deferUpdate();
+      const payload = buildMessagePayload(session, rotations);
+      const prefix = !ctx
+        ? t(loc, 'week_not_in_rotation')
+        : t(loc, 'invalid_wave_slot');
+      await interaction.message.edit(mergePayloadContent(prefix, payload));
       return;
     }
     const zi = session.pendingZoneIndex;
@@ -281,7 +387,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     const loc = /** @type {'en' | 'ru'} */ (session.locale);
     try {
       writeTsushimaFile(session.draft);
-      deleteSession(interaction.user.id);
+      deleteSession(interaction.user.id, session.sourceCommand);
       await interaction.deferUpdate();
       await interaction.message.edit({
         content: `${t(loc, 'saved_success')}\n${t(loc, 'confirm_saved')}`,

@@ -14,6 +14,7 @@ import {
   TOTAL_WAVES,
   WAVES_PER_PAGE,
 } from './constants.js';
+import { appendFlowSuffix } from './wave-custom-id.js';
 
 const LABEL_MAX = 100;
 const MOD_TRUNC = 120;
@@ -61,11 +62,11 @@ function formatWaveSpawnHeader(locale, wave, slot) {
  * @param {'en' | 'ru'} locale
  * @param {'grid' | 'zone'} target
  */
-function wizardBackRow(locale, target) {
-  const customId = target === 'grid' ? 'waves:back:grid' : 'waves:back:zone';
+function wizardBackRow(locale, target, session) {
+  const base = target === 'grid' ? 'waves:back:grid' : 'waves:back:zone';
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(customId)
+      .setCustomId(appendFlowSuffix(base, session.sourceCommand))
       .setLabel(trunc(t(locale, 'btn_wizard_back'), 80))
       .setStyle(ButtonStyle.Danger),
   );
@@ -78,13 +79,15 @@ const ZWSP = '\u200b';
  * @param {number} W
  * @param {object} draft
  */
-function waveRow(W, draft) {
+function waveRow(W, draft, session) {
   const row = new ActionRowBuilder();
   for (let s = 1; s <= SLOTS_PER_WAVE; s++) {
     const filled = isCellFilled(draft, W, s);
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(`waves:c:${W}:${s}`)
+        .setCustomId(
+          appendFlowSuffix(`waves:c:${W}:${s}`, session.sourceCommand),
+        )
         .setLabel(`${W}.${s}`)
         .setStyle(filled ? ButtonStyle.Success : ButtonStyle.Secondary),
     );
@@ -96,12 +99,12 @@ function waveRow(W, draft) {
  * Row 4: ⬅️ | [✅ Done when grid complete] | ➡️
  * @param {'en' | 'ru'} locale
  */
-function navRow(locale, page, complete) {
+function navRow(locale, page, complete, session) {
   const row = new ActionRowBuilder();
 
   row.addComponents(
     new ButtonBuilder()
-      .setCustomId('waves:p:prev')
+      .setCustomId(appendFlowSuffix('waves:p:prev', session.sourceCommand))
       .setStyle(ButtonStyle.Secondary)
       .setEmoji('⬅️')
       .setLabel(ZWSP)
@@ -111,7 +114,7 @@ function navRow(locale, page, complete) {
   if (complete) {
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId('waves:done')
+        .setCustomId(appendFlowSuffix('waves:done', session.sourceCommand))
         .setStyle(ButtonStyle.Danger)
         .setEmoji('✅')
         .setLabel(ZWSP),
@@ -120,7 +123,7 @@ function navRow(locale, page, complete) {
 
   row.addComponents(
     new ButtonBuilder()
-      .setCustomId('waves:p:next')
+      .setCustomId(appendFlowSuffix('waves:p:next', session.sourceCommand))
       .setStyle(ButtonStyle.Primary)
       .setEmoji('➡️')
       .setLabel(ZWSP)
@@ -139,12 +142,12 @@ export function buildMessagePayload(session, rotations) {
   if (session.uiStep === 'lang') {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('waves:lang:en')
+        .setCustomId(appendFlowSuffix('waves:lang:en', session.sourceCommand))
         .setLabel(strings.en.btn_english)
         .setStyle(ButtonStyle.Primary)
         .setEmoji('🇬🇧'),
       new ButtonBuilder()
-        .setCustomId('waves:lang:ru')
+        .setCustomId(appendFlowSuffix('waves:lang:ru', session.sourceCommand))
         .setLabel(strings.ru.btn_russian)
         .setStyle(ButtonStyle.Primary)
         .setEmoji('🇷🇺'),
@@ -157,7 +160,7 @@ export function buildMessagePayload(session, rotations) {
 
   if (session.uiStep === 'week') {
     const select = new StringSelectMenuBuilder()
-      .setCustomId('waves:week')
+      .setCustomId(appendFlowSuffix('waves:week', session.sourceCommand))
       .setPlaceholder(trunc(t(locale, 'choose_week'), 150));
 
     for (const w of rotations.weeksList) {
@@ -209,10 +212,10 @@ export function buildMessagePayload(session, rotations) {
 
     for (let r = 0; r < WAVES_PER_PAGE; r++) {
       const W = base + r + 1;
-      if (W <= TOTAL_WAVES) rows.push(waveRow(W, draft));
+      if (W <= TOTAL_WAVES) rows.push(waveRow(W, draft, session));
     }
 
-    rows.push(navRow(locale, page, complete));
+    rows.push(navRow(locale, page, complete, session));
 
     return { content, components: rows };
   }
@@ -249,14 +252,14 @@ export function buildMessagePayload(session, rotations) {
         cell.zone_ru === ruMap.zones_spawns[i].zone;
       row.addComponents(
         new ButtonBuilder()
-          .setCustomId(`waves:z:${i}`)
+          .setCustomId(appendFlowSuffix(`waves:z:${i}`, session.sourceCommand))
           .setLabel(trunc(label, 80))
           .setStyle(matchesSaved ? ButtonStyle.Success : ButtonStyle.Secondary),
       );
     }
     return {
       content,
-      components: [row, wizardBackRow(locale, 'grid')],
+      components: [row, wizardBackRow(locale, 'grid', session)],
     };
   }
 
@@ -288,7 +291,7 @@ export function buildMessagePayload(session, rotations) {
         (cell.spawn_en === spEn[i] || cell.spawn_ru === spRu[i]);
       cur.addComponents(
         new ButtonBuilder()
-          .setCustomId(`waves:s:${i}`)
+          .setCustomId(appendFlowSuffix(`waves:s:${i}`, session.sourceCommand))
           .setLabel(trunc(label, 80))
           .setStyle(matchesSaved ? ButtonStyle.Success : ButtonStyle.Secondary),
       );
@@ -298,7 +301,7 @@ export function buildMessagePayload(session, rotations) {
       }
     }
     if (cur.components.length) spawnRows.push(cur);
-    spawnRows.push(wizardBackRow(locale, 'zone'));
+    spawnRows.push(wizardBackRow(locale, 'zone', session));
     return { content, components: spawnRows };
   }
 

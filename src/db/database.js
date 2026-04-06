@@ -68,6 +68,25 @@ export function initDatabase() {
   `);
 
   migrateLegacySessionsJson();
+  migrateSessionKeysToScoped();
+}
+
+/** Legacy rows used Discord user_id only; scope to setup-waves so edit-waves can have its own row. */
+function migrateSessionKeysToScoped() {
+  try {
+    const info = db.prepare(
+      `
+      UPDATE setup_waves_sessions
+      SET user_id = user_id || ':setup-waves'
+      WHERE instr(user_id, ':') = 0
+    `,
+    ).run();
+    if (info.changes > 0) {
+      console.log('[db] Scoped session user_id keys:', info.changes);
+    }
+  } catch (e) {
+    console.error('[db] migrateSessionKeysToScoped:', e);
+  }
 }
 
 /** @returns {import('better-sqlite3').Database} */

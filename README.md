@@ -1,6 +1,6 @@
 # waves-bot
 
-Discord DM wizard: build `waves/tsushima.json` from rotation JSON via `/setup-waves`.
+Discord DM wizard: build `waves/tsushima.json` via `/setup-waves`, or reload and edit the existing file via `/edit-waves` (same `game` option, DM only).
 
 ## Requirements
 

@@ -81,12 +81,14 @@ export function loadRotations() {
  * @param {string} code
  */
 export function findWeekContext(en, ru, code) {
+  const c = String(code ?? '').trim();
+  if (!c) return null;
   for (let mapIndex = 0; mapIndex < en.length; mapIndex++) {
     const enMap = en[mapIndex];
     const ruMap = ru[mapIndex];
     if (!ruMap) continue;
-    const weekEn = enMap.weeks?.find((w) => w.code === code);
-    const weekRu = ruMap.weeks?.find((w) => w.code === code);
+    const weekEn = enMap.weeks?.find((w) => w.code === c);
+    const weekRu = ruMap.weeks?.find((w) => w.code === c);
     if (weekEn && weekRu) {
       return { mapIndex, enMap, ruMap, weekEn, weekRu };
     }
@@ -189,6 +191,95 @@ export function createEmptyDraft() {
     objectives: emptyObjectives(),
     waves: createEmptyWaves(),
   };
+}
+
+/**
+ * Merge a loose object from tsushima.json into the canonical draft shape.
+ * @param {unknown} raw
+ */
+export function normalizeDraftShape(raw) {
+  const base = createEmptyDraft();
+  if (!raw || typeof raw !== 'object') return base;
+  const o = /** @type {Record<string, unknown>} */ (raw);
+  return {
+    week: String(o.week ?? base.week).trim(),
+    credits: String(o.credits ?? base.credits),
+    map_slug: String(o.map_slug ?? base.map_slug),
+    map_name_en: String(o.map_name_en ?? base.map_name_en),
+    map_name_ru: String(o.map_name_ru ?? base.map_name_ru),
+    mods: normalizeModsBlock(o.mods, base.mods),
+    objectives: normalizeObjectivesBlock(o.objectives, base.objectives),
+    waves: normalizeWavesBlock(o.waves),
+  };
+}
+
+/**
+ * @param {unknown} mods
+ * @param {object[]} baseMods
+ */
+function normalizeModsBlock(mods, baseMods) {
+  const arr = Array.isArray(mods) ? mods : [];
+  const first =
+    arr[0] && typeof arr[0] === 'object'
+      ? /** @type {Record<string, unknown>} */ (arr[0])
+      : {};
+  const b0 = baseMods[0];
+  return [
+    {
+      mod1_en: String(first.mod1_en ?? b0.mod1_en),
+      mod1_ru: String(first.mod1_ru ?? b0.mod1_ru),
+      mod1_icon: String(first.mod1_icon ?? b0.mod1_icon),
+      mod2_en: String(first.mod2_en ?? b0.mod2_en),
+      mod2_ru: String(first.mod2_ru ?? b0.mod2_ru),
+      mod2_icon: String(first.mod2_icon ?? b0.mod2_icon),
+    },
+  ];
+}
+
+/**
+ * @param {unknown} objectives
+ * @param {Record<string, { objective_en: string, objective_ru: string, objective_icon: string, objective_num: number }>} base
+ */
+function normalizeObjectivesBlock(objectives, base) {
+  /** @type {Record<string, { objective_en: string, objective_ru: string, objective_icon: string, objective_num: number }>} */
+  const out = { ...base };
+  const src = objectives && typeof objectives === 'object' ? /** @type {Record<string, unknown>} */ (objectives) : {};
+  for (let i = 1; i <= 5; i++) {
+    const k = `objective_${i}`;
+    const s = src[k] && typeof src[k] === 'object' ? /** @type {Record<string, unknown>} */ (src[k]) : {};
+    const b = base[k];
+    out[k] = {
+      objective_en: String(s.objective_en ?? b.objective_en),
+      objective_ru: String(s.objective_ru ?? b.objective_ru),
+      objective_icon: String(s.objective_icon ?? b.objective_icon),
+      objective_num: Number(s.objective_num ?? b.objective_num),
+    };
+  }
+  return out;
+}
+
+/** @param {unknown} waves */
+function normalizeWavesBlock(waves) {
+  const out = createEmptyWaves();
+  const w = waves && typeof waves === 'object' ? /** @type {Record<string, unknown>} */ (waves) : {};
+  for (let wi = 1; wi <= 15; wi++) {
+    const key = `wave_${wi}`;
+    const srcWave = w[key] && typeof w[key] === 'object' ? /** @type {Record<string, unknown>} */ (w[key]) : {};
+    for (let s = 1; s <= 3; s++) {
+      const slot = String(s);
+      const srcCell =
+        srcWave[slot] && typeof srcWave[slot] === 'object'
+          ? /** @type {Record<string, unknown>} */ (srcWave[slot])
+          : {};
+      out[key][slot] = {
+        zone_en: String(srcCell.zone_en ?? ''),
+        zone_ru: String(srcCell.zone_ru ?? ''),
+        spawn_en: String(srcCell.spawn_en ?? ''),
+        spawn_ru: String(srcCell.spawn_ru ?? ''),
+      };
+    }
+  }
+  return out;
 }
 
 export { createEmptyWaves };

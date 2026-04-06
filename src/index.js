@@ -58,7 +58,10 @@ client.once(Events.ClientReady, async (c) => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    if (interaction.isChatInputCommand() && interaction.commandName === 'setup-waves') {
+    if (
+      interaction.isChatInputCommand() &&
+      (interaction.commandName === 'setup-waves' || interaction.commandName === 'edit-waves')
+    ) {
       await handleSetupWavesInteraction(interaction, client);
       return;
     }

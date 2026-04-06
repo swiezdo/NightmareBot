@@ -1,6 +1,11 @@
 import { getDb } from './database.js';
 import { GRID_PAGE_COUNT } from '../wizard/constants.js';
 
+/** @param {string} userId @param {string} [sourceCommand] */
+export function sessionRowKey(userId, sourceCommand = 'setup-waves') {
+  return `${userId}:${sourceCommand}`;
+}
+
 function clampGridPage(p) {
   return Math.min(Math.max(0, p ?? 0), GRID_PAGE_COUNT - 1);
 }
@@ -13,6 +18,7 @@ function normalizeRow(row) {
   return {
     userId: row.userId,
     game: row.game,
+    sourceCommand: row.sourceCommand ?? 'setup-waves',
     locale: row.locale,
     messageId: row.messageId,
     channelId: row.channelId,
@@ -28,15 +34,16 @@ function normalizeRow(row) {
 
 /**
  * @param {string} userId
+ * @param {'setup-waves' | 'edit-waves'} [sourceCommand]
  * @returns {object | null}
  */
-export function getSession(userId) {
+export function getSession(userId, sourceCommand = 'setup-waves') {
   const db = getDb();
   const found = db
     .prepare(
       `SELECT payload FROM setup_waves_sessions WHERE user_id = ?`,
     )
-    .get(userId);
+    .get(sessionRowKey(userId, sourceCommand));
   if (!found) return null;
   try {
     const row = JSON.parse(/** @type {{ payload: string }} */ (found).payload);
@@ -54,6 +61,7 @@ export function saveSession(row) {
   const toStore = {
     userId: row.userId,
     game: row.game,
+    sourceCommand: row.sourceCommand ?? 'setup-waves',
     locale: row.locale ?? null,
     messageId: row.messageId ?? null,
     channelId: row.channelId ?? null,
@@ -71,13 +79,19 @@ export function saveSession(row) {
     VALUES (@user_id, @payload, @updated_at)
   `,
   ).run({
-    user_id: String(row.userId),
+    user_id: sessionRowKey(String(row.userId), toStore.sourceCommand),
     payload: JSON.stringify(toStore),
     updated_at: toStore.updatedAt,
   });
 }
 
-export function deleteSession(userId) {
+/**
+ * @param {string} userId
+ * @param {'setup-waves' | 'edit-waves'} sourceCommand
+ */
+export function deleteSession(userId, sourceCommand = 'setup-waves') {
   const db = getDb();
-  db.prepare(`DELETE FROM setup_waves_sessions WHERE user_id = ?`).run(userId);
+  db.prepare(`DELETE FROM setup_waves_sessions WHERE user_id = ?`).run(
+    sessionRowKey(userId, sourceCommand),
+  );
 }

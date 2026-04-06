@@ -9,21 +9,29 @@ if (!token || !clientId) {
   process.exit(1);
 }
 
+const gameOption = (builder) =>
+  builder.addStringOption((option) =>
+    option
+      .setName('game')
+      .setDescription('Игра')
+      .setRequired(true)
+      .addChoices(
+        { name: 'Ghost of Tsushima', value: 'tsushima' },
+        { name: 'Ghost of Yotei', value: 'yotei' },
+      ),
+  );
+
 const commands = [
-  new SlashCommandBuilder()
-    .setName('setup-waves')
-    .setDescription('Мастер настройки волн (только в личных сообщениях)')
-    .addStringOption((option) =>
-      option
-        .setName('game')
-        .setDescription('Игра')
-        .setRequired(true)
-        .addChoices(
-          { name: 'Ghost of Tsushima', value: 'tsushima' },
-          { name: 'Ghost of Yotei', value: 'yotei' },
-        ),
-    )
-    .toJSON(),
+  gameOption(
+    new SlashCommandBuilder()
+      .setName('setup-waves')
+      .setDescription('Мастер настройки волн (только в личных сообщениях)'),
+  ).toJSON(),
+  gameOption(
+    new SlashCommandBuilder()
+      .setName('edit-waves')
+      .setDescription('Редактировать волны из waves/tsushima.json (ЛС)'),
+  ).toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
