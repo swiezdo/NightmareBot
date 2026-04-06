@@ -194,7 +194,7 @@ export function createEmptyDraft() {
 }
 
 /**
- * Merge a loose object from tsushima.json into the canonical draft shape.
+ * Merge a loose object (e.g. from DB payload) into the canonical draft shape.
  * @param {unknown} raw
  */
 export function normalizeDraftShape(raw) {

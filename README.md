@@ -1,6 +1,6 @@
 # waves-bot
 
-Discord DM wizard: build `waves/tsushima.json` via `/setup-waves`, or reload and edit the existing file via `/edit-waves` (same `game` option, DM only).
+Discord DM wizard: build and edit Tsushima waves via `/setup-waves` and `/edit-waves` (same `game` option, DM only). The published draft is stored in **SQLite** (`waves_tsushima_publish`), not in `waves/tsushima.json`.
 
 ## Requirements
 
@@ -21,6 +21,7 @@ npm start
 
 - **Sessions** are stored in **`data/waves_bot.db`** (SQLite via `better-sqlite3`), not in `sessions.json`.
 - On first startup, if **`data/sessions.json`** exists and the DB table is empty, rows are imported and the file is renamed to **`data/sessions.json.migrated`**.
+- If **`waves/tsushima.json`** exists and there is no published row for Tsushima yet, it is imported into **`waves_tsushima_publish`** and the file is renamed to **`waves/tsushima.json.migrated`**.
 - Do not commit `.db` files or `.env` (see `.gitignore`).
 
 ## sqlite-web (database browser UI)
@@ -43,5 +44,6 @@ The bot process and sqlite-web both open the same SQLite file; avoid heavy write
 | `src/handlers/setup-waves.js` | `/setup-waves` and component interactions |
 | `src/db/database.js` | SQLite init + legacy JSON migration |
 | `src/db/session.js` | Session load/save/delete |
+| `src/db/tsushima-publish.js` | Published Tsushima draft (`waves_tsushima_publish`) |
 | `json/rotation_tsushima_*.json` | Rotation source data |
-| `waves/tsushima.json` | Output (written by wizard; gitignored by default) |
+| `waves/tsushima.json` | Legacy only: imported once into DB then renamed to `.migrated` |

@@ -1,5 +1,5 @@
 [Unit]
-Description=Waves Discord bot (tsushima.json wizard)
+Description=Waves Discord bot (Tsushima waves wizard, SQLite)
 After=network-online.target
 
 [Service]

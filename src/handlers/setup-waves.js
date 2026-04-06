@@ -11,8 +11,7 @@ import { getSession, saveSession, deleteSession } from '../db/session.js';
 import { stripFlowSuffix } from '../wizard/wave-custom-id.js';
 import { buildMessagePayload } from '../wizard/ui.js';
 import { setWaveCell } from '../wizard/grid.js';
-import { writeTsushimaFile } from '../wizard/write-tsushima.js';
-import { loadDraftForEdit } from '../wizard/read-tsushima.js';
+import { loadPublishedDraft, savePublishedDraft } from '../db/tsushima-publish.js';
 import { GRID_PAGE_COUNT, SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
 
 const DISCORD_CONTENT_MAX = 2000;
@@ -150,7 +149,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       return;
     }
 
-    const loaded = loadDraftForEdit();
+    const loaded = loadPublishedDraft(game);
     if (!loaded.ok) {
       const loc = allowed.has(interaction.user.id) ? 'ru' : 'en';
       const key =
@@ -386,7 +385,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   if (id === 'waves:done') {
     const loc = /** @type {'en' | 'ru'} */ (session.locale);
     try {
-      writeTsushimaFile(session.draft);
+      savePublishedDraft(session.game, session.draft);
       deleteSession(interaction.user.id, session.sourceCommand);
       await interaction.deferUpdate();
       await interaction.message.edit({
@@ -394,7 +393,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         components: [],
       });
     } catch (e) {
-      console.error('writeTsushimaFile', e);
+      console.error('savePublishedDraft', e);
       await interaction.deferUpdate();
       await interaction.message.edit({
         content: t(loc, 'save_error'),

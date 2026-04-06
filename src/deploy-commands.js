@@ -30,7 +30,7 @@ const commands = [
   gameOption(
     new SlashCommandBuilder()
       .setName('edit-waves')
-      .setDescription('Редактировать волны из waves/tsushima.json (ЛС)'),
+      .setDescription('Редактировать сохранённые волны Tsushima из базы бота (ЛС)'),
   ).toJSON(),
 ];
 
