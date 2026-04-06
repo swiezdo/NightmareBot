@@ -18,14 +18,18 @@ const DISCORD_CONTENT_MAX = 2000;
 
 /**
  * @param {string} [prefix]
- * @param {{ content: string, components: import('discord.js').ActionRowBuilder[] }} payload
+ * @param {{ content: string, components: import('discord.js').ActionRowBuilder[], embeds?: import('discord.js').EmbedBuilder[] }} payload
  */
 function mergePayloadContent(prefix, payload) {
   let content = prefix ? `${prefix}\n\n${payload.content}` : payload.content;
   if (content.length > DISCORD_CONTENT_MAX) {
     content = `${content.slice(0, DISCORD_CONTENT_MAX - 1)}…`;
   }
-  return { content, components: payload.components };
+  return {
+    content,
+    components: payload.components,
+    embeds: payload.embeds ?? [],
+  };
 }
 
 /** @param {string | undefined} raw */
@@ -419,6 +423,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       await interaction.message.edit({
         content: `${t(loc, 'saved_success')}\n${t(loc, 'confirm_saved')}`,
         components: [],
+        embeds: [],
       });
     } catch (e) {
       console.error('savePublishedDraft', e);
@@ -426,6 +431,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       await interaction.message.edit({
         content: t(loc, 'save_error'),
         components: [],
+        embeds: [],
       });
     }
   }

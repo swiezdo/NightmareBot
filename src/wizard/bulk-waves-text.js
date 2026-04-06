@@ -2,6 +2,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
 } from 'discord.js';
 import { findWeekContext, normalizeSpawns } from '../data/rotation.js';
 import { t } from '../i18n/strings.js';
@@ -10,6 +11,7 @@ import { setWaveCell } from './grid.js';
 import { appendFlowSuffix } from './wave-custom-id.js';
 
 const DISCORD_MAX = 2000;
+const EMBED_DESC_MAX = 4096;
 
 /**
  * @param {string} s
@@ -149,13 +151,15 @@ function matchSlotToken(token, matchers) {
 
 /**
  * @param {SpawnCatalogEntry[]} catalog
+ * @param {number} [maxWaves] default 3 (full game has 15)
  */
-export function buildExampleWaveLines(catalog) {
+export function buildExampleWaveLines(catalog, maxWaves = 3) {
   if (catalog.length === 0) return [];
+  const n = Math.min(Math.max(1, maxWaves), TOTAL_WAVES);
   let idx = 0;
   /** @type {string[]} */
   const lines = [];
-  for (let w = 1; w <= TOTAL_WAVES; w++) {
+  for (let w = 1; w <= n; w++) {
     const slots = [];
     for (let s = 0; s < SLOTS_PER_WAVE; s++) {
       slots.push(catalog[idx % catalog.length].displayLine);
@@ -268,38 +272,38 @@ export function parseBulkWavesText(text, catalog) {
 }
 
 /**
- * @param {Map<number, string[]>} waveMap
- * @param {{ wave: number, slotIdx: number, token: string }[]} slotErrors
- */
-/**
  * @param {object} result
+ * @param {'en' | 'ru'} locale
  */
-export function formatBulkParseFailure(result) {
+export function formatBulkParseFailure(result, locale) {
+  const loc = locale ?? 'en';
   const esc = (x) => escapeDiscordBoldSegment(x);
   if (result.kind === 'bad_line') {
     const line = esc(result.badLine ?? '');
-    return `${t('ru', 'bulk_err_bad_line')}\n${t('en', 'bulk_err_bad_line')}\n**${line}**`;
+    return `${t(loc, 'bulk_err_bad_line')}\n**${line}**`;
   }
   if (result.kind === 'bad_wave_num') {
-    return `${t('ru', 'bulk_err_bad_wave_num')}\n${t('en', 'bulk_err_bad_wave_num')} (${result.wave})`;
+    return `${t(loc, 'bulk_err_bad_wave_num')} (${result.wave})`;
   }
   if (result.kind === 'dup_wave') {
-    return `${t('ru', 'bulk_err_dup_wave')}\n${t('en', 'bulk_err_dup_wave')} (${result.wave})`;
+    return `${t(loc, 'bulk_err_dup_wave')} (${result.wave})`;
   }
   if (result.kind === 'bad_slot_count') {
     const w = result.wave;
-    return `${t('ru', 'bulk_err_bad_slot_count').replace('{wave}', String(w))}\n${t('en', 'bulk_err_bad_slot_count').replace('{wave}', String(w))}`;
+    return t(loc, 'bulk_err_bad_slot_count').replace('{wave}', String(w));
   }
   if (result.kind === 'missing_waves') {
-    return `${t('ru', 'bulk_err_missing_waves')}\n${t('en', 'bulk_err_missing_waves')}`;
+    return t(loc, 'bulk_err_missing_waves');
   }
   if (result.kind === 'bad_slots') {
     const echo = formatSlotErrorsEcho(result.waveMap, result.slotErrors);
-    const head = `${t('ru', 'bulk_err_bad_slots')}\n${t('en', 'bulk_err_bad_slots')}`;
+    const head = t(loc, 'bulk_err_bad_slots');
     const block = `${head}\n\n${echo}`;
-    return block.length > 1200 ? truncateTo(block, 1200) : block;
+    return block.length > EMBED_DESC_MAX
+      ? truncateTo(block, EMBED_DESC_MAX)
+      : block;
   }
-  return `${t('ru', 'bulk_err_unknown')}\n${t('en', 'bulk_err_unknown')}`;
+  return t(loc, 'bulk_err_unknown');
 }
 
 export function formatSlotErrorsEcho(waveMap, slotErrors) {
@@ -340,17 +344,23 @@ export function applyBulkAssignments(draft, assignments) {
  */
 function buildInstructionBody(locale, catalog, exampleLines) {
   const lines = [];
-  lines.push(t(locale, 'bulk_intro'));
-  lines.push('');
+  const intro = t(locale, 'bulk_intro').trim();
+  if (intro) {
+    lines.push(intro);
+    lines.push('');
+  }
   lines.push(t(locale, 'bulk_spawn_names_header'));
   for (const e of catalog) {
-    lines.push(e.displayLine);
+    lines.push(`> ${e.displayLine}`);
   }
   lines.push('');
   lines.push(t(locale, 'bulk_format_header'));
+  lines.push('```');
   for (const el of exampleLines) {
     lines.push(el);
   }
+  lines.push('```');
+  lines.push(`*${t(locale, 'bulk_format_and_so_on')}*`);
   lines.push('');
   lines.push(t(locale, 'bulk_reply_hint'));
   return lines.join('\n');
@@ -409,7 +419,7 @@ export function buildBulkInstructionMain(session, rotations) {
   }
   const { enMap, ruMap } = ctx;
   const catalog = buildSpawnCatalog(enMap, ruMap, locale);
-  const exampleLines = buildExampleWaveLines(catalog);
+  const exampleLines = buildExampleWaveLines(catalog, 3);
   let body = buildInstructionBody(locale, catalog, exampleLines);
   body = shrinkBodyIfNeeded(body, locale, DISCORD_MAX - 400);
   return { ok: true, content: body, catalog };
@@ -429,13 +439,10 @@ export function buildBulkInputPayload(session, rotations) {
         .setLabel(trunc(t(locale, 'bulk_cancel'), 80))
         .setStyle(ButtonStyle.Danger),
     );
-    return { content: main.content, components: [row] };
+    return { content: main.content, components: [row], embeds: [] };
   }
 
   let content = main.content;
-  if (session.bulkParseError) {
-    content = `${session.bulkParseError}\n\n---\n\n${content}`;
-  }
   if (content.length > DISCORD_MAX) {
     content = truncateTo(content, DISCORD_MAX);
   }
@@ -447,7 +454,21 @@ export function buildBulkInputPayload(session, rotations) {
       .setStyle(ButtonStyle.Danger),
   );
 
-  return { content, components: [row] };
+  /** @type {import('discord.js').EmbedBuilder[]} */
+  const embeds = [];
+  if (session.bulkParseError) {
+    let desc = session.bulkParseError;
+    if (desc.length > EMBED_DESC_MAX) {
+      desc = truncateTo(desc, EMBED_DESC_MAX);
+    }
+    embeds.push(
+      new EmbedBuilder()
+        .setColor(0xed4245)
+        .setDescription(desc),
+    );
+  }
+
+  return { content, components: [row], embeds };
 }
 
 /**

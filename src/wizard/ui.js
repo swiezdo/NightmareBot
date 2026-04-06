@@ -147,7 +147,7 @@ function navRow(locale, page, complete, session) {
  * @param {object} session
  * @param {{ en: object[], ru: object[], weeksList: { code: string, labelEn: string, labelRu: string }[] }} rotations
  */
-export function buildMessagePayload(session, rotations) {
+function buildMessagePayloadCore(session, rotations) {
   if (session.uiStep === 'bulk_input') {
     return buildBulkInputPayload(session, rotations);
   }
@@ -319,4 +319,13 @@ export function buildMessagePayload(session, rotations) {
   }
 
   return { content: '…', components: [] };
+}
+
+/**
+ * @param {object} session
+ * @param {{ en: object[], ru: object[], weeksList: { code: string, labelEn: string, labelRu: string }[] }} rotations
+ */
+export function buildMessagePayload(session, rotations) {
+  const p = buildMessagePayloadCore(session, rotations);
+  return { ...p, embeds: p.embeds ?? [] };
 }
