@@ -3,6 +3,7 @@ node_modules/
 data/*.db
 data/*.db-*
 data/sessions.json
+data/sessions.json.migrated
 *.bak
 
 # Generated editor output (local / server)

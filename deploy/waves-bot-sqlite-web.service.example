@@ -1,0 +1,25 @@
+# Copy to e.g. /etc/systemd/system/waves-bot-sqlite-web.service
+# Install sqlite-web in a venv: python3 -m venv .venv && .venv/bin/pip install sqlite-web
+# Create /opt/waves-bot/.env.sqlite-web (chmod 600) with:
+#   SQLITE_WEB_PORT=8765
+#   SQLITE_WEB_PASSWORD=<strong secret>
+#
+# Nginx: server_name nightmarebot.tsushimaru.com; proxy_pass http://127.0.0.1:$port;
+
+[Unit]
+Description=sqlite-web UI for waves-bot SQLite (bind localhost only)
+After=network-online.target
+
+[Service]
+Type=simple
+User=waves-bot
+Group=waves-bot
+WorkingDirectory=/opt/waves-bot
+EnvironmentFile=-/opt/waves-bot/.env.sqlite-web
+# sqlite_web: pass --password from env (required for public-facing proxy)
+ExecStart=/bin/sh -c 'exec /opt/waves-bot/.venv/bin/sqlite_web /opt/waves-bot/data/waves_bot.db --host 127.0.0.1 --port "${SQLITE_WEB_PORT:-8765}" --password "${SQLITE_WEB_PASSWORD}"'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

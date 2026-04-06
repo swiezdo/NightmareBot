@@ -1,44 +1,15 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { DATA_DIR } from '../paths.js';
+import { getDb } from './database.js';
 import { GRID_PAGE_COUNT } from '../wizard/constants.js';
-
-const STORE_PATH = path.join(DATA_DIR, 'sessions.json');
 
 function clampGridPage(p) {
   return Math.min(Math.max(0, p ?? 0), GRID_PAGE_COUNT - 1);
 }
 
-function ensureDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
-
-function readAll() {
-  ensureDir();
-  if (!fs.existsSync(STORE_PATH)) return {};
-  try {
-    const raw = fs.readFileSync(STORE_PATH, 'utf8');
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
-}
-
-function writeAll(obj) {
-  ensureDir();
-  fs.writeFileSync(STORE_PATH, `${JSON.stringify(obj, null, 2)}\n`, 'utf8');
-}
-
 /**
- * @param {string} userId
- * @returns {object | null}
+ * Normalize object loaded from DB payload JSON.
+ * @param {object} row
  */
-export function getSession(userId) {
-  const all = readAll();
-  const row = all[userId];
-  if (!row) return null;
+function normalizeRow(row) {
   return {
     userId: row.userId,
     game: row.game,
@@ -56,11 +27,31 @@ export function getSession(userId) {
 }
 
 /**
+ * @param {string} userId
+ * @returns {object | null}
+ */
+export function getSession(userId) {
+  const db = getDb();
+  const found = db
+    .prepare(
+      `SELECT payload FROM setup_waves_sessions WHERE user_id = ?`,
+    )
+    .get(userId);
+  if (!found) return null;
+  try {
+    const row = JSON.parse(/** @type {{ payload: string }} */ (found).payload);
+    return normalizeRow(row);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * @param {object} row
  */
 export function saveSession(row) {
-  const all = readAll();
-  all[row.userId] = {
+  const db = getDb();
+  const toStore = {
     userId: row.userId,
     game: row.game,
     locale: row.locale ?? null,
@@ -74,11 +65,19 @@ export function saveSession(row) {
     pendingZoneIndex: row.pendingZoneIndex ?? null,
     updatedAt: Date.now(),
   };
-  writeAll(all);
+  db.prepare(
+    `
+    INSERT OR REPLACE INTO setup_waves_sessions (user_id, payload, updated_at)
+    VALUES (@user_id, @payload, @updated_at)
+  `,
+  ).run({
+    user_id: String(row.userId),
+    payload: JSON.stringify(toStore),
+    updated_at: toStore.updatedAt,
+  });
 }
 
 export function deleteSession(userId) {
-  const all = readAll();
-  delete all[userId];
-  writeAll(all);
+  const db = getDb();
+  db.prepare(`DELETE FROM setup_waves_sessions WHERE user_id = ?`).run(userId);
 }

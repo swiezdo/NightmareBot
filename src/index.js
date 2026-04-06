@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { handleSetupWavesInteraction, parseAllowedUserIds } from './handlers/setup-waves.js';
+import { initDatabase } from './db/database.js';
+
+initDatabase();
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
