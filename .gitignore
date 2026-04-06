@@ -5,5 +5,5 @@ data/*.db-*
 data/sessions.json
 *.bak
 
-# Выходной JSON редактора (локально / на сервере)
+# Generated editor output (local / server)
 waves/tsushima.json

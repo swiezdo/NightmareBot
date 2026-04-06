@@ -168,7 +168,7 @@ function emptyObjectives() {
   return out;
 }
 
-/** Черновик до выбора недели */
+/** Draft before a week is selected. */
 export function createEmptyDraft() {
   return {
     week: '',

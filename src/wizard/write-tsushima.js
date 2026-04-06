@@ -3,7 +3,7 @@ import path from 'node:path';
 import { TSUSHIMA_OUTPUT_PATH } from '../paths.js';
 
 /**
- * @param {object} draft одна запись карты (как элемент массива tsushima.json)
+ * @param {object} draft Single map entry (as one element of tsushima.json array).
  */
 export function writeTsushimaFile(draft) {
   const dir = path.dirname(TSUSHIMA_OUTPUT_PATH);

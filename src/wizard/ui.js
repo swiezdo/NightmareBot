@@ -19,7 +19,7 @@ const LABEL_MAX = 100;
 const MOD_TRUNC = 120;
 
 /**
- * Экранирование * в тексте для markdown Discord внутри *…*
+ * Escape * for Discord markdown inside *…* italics.
  * @param {string} s
  */
 function escapeDiscordItalic(s) {
@@ -57,7 +57,7 @@ function formatWaveSpawnHeader(locale, wave, slot) {
 }
 
 /**
- * Красная «Назад»: к сетке или к выбору зоны.
+ * Red "Back" button: to grid or back to zone selection.
  * @param {'en' | 'ru'} locale
  * @param {'grid' | 'zone'} target
  */
@@ -71,13 +71,13 @@ function wizardBackRow(locale, target) {
   );
 }
 
+/** Zero-width space: emoji-only buttons still need a minimal label for the API. */
+const ZWSP = '\u200b';
+
 /**
  * @param {number} W
  * @param {object} draft
  */
-/** Кнопка только с эмодзи (короткий невидимый label для API) */
-const ZWSP = '\u200b';
-
 function waveRow(W, draft) {
   const row = new ActionRowBuilder();
   for (let s = 1; s <= SLOTS_PER_WAVE; s++) {
@@ -93,7 +93,7 @@ function waveRow(W, draft) {
 }
 
 /**
- * Ряд 4: ⬅️ | [✅ при заполнении] | ➡️
+ * Row 4: ⬅️ | [✅ Done when grid complete] | ➡️
  * @param {'en' | 'ru'} locale
  */
 function navRow(locale, page, complete) {

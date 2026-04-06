@@ -1,7 +1,7 @@
 import { SLOTS_PER_WAVE, TOTAL_WAVES } from './constants.js';
 
 /**
- * Кнопка W.s → waves.wave_W["s"], W = 1…TOTAL_WAVES, s = 1…3.
+ * Button W.s maps to waves.wave_W["s"], W = 1…TOTAL_WAVES, s = 1…3.
  */
 
 /**
