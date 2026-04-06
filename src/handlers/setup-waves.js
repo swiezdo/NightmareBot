@@ -10,7 +10,7 @@ import {
 import { getSession, saveSession, deleteSession } from '../db/session.js';
 import { stripFlowSuffix } from '../wizard/wave-custom-id.js';
 import { buildMessagePayload } from '../wizard/ui.js';
-import { setWaveCell } from '../wizard/grid.js';
+import { setWaveCell, isGridComplete } from '../wizard/grid.js';
 import { loadPublishedDraft, savePublishedDraft } from '../db/tsushima-publish.js';
 import { GRID_PAGE_COUNT, SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
 
@@ -230,6 +230,34 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.draft = buildDraftFromWeek(ctx);
     session.uiStep = 'grid';
     session.gridPage = 0;
+    saveSession(session);
+    await interaction.deferUpdate();
+    await interaction.message.edit(buildMessagePayload(session, rotations));
+    return;
+  }
+
+  if (id === 'waves:bulk:open') {
+    if (session.uiStep !== 'grid' || isGridComplete(session.draft)) {
+      await interaction.deferUpdate();
+      await interaction.message.edit(buildMessagePayload(session, rotations));
+      return;
+    }
+    session.uiStep = 'bulk_input';
+    session.bulkParseError = null;
+    saveSession(session);
+    await interaction.deferUpdate();
+    await interaction.message.edit(buildMessagePayload(session, rotations));
+    return;
+  }
+
+  if (id === 'waves:bulk:cancel') {
+    if (session.uiStep !== 'bulk_input') {
+      await interaction.deferUpdate();
+      await interaction.message.edit(buildMessagePayload(session, rotations));
+      return;
+    }
+    session.uiStep = 'grid';
+    session.bulkParseError = null;
     saveSession(session);
     await interaction.deferUpdate();
     await interaction.message.edit(buildMessagePayload(session, rotations));

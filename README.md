@@ -6,6 +6,7 @@ Discord DM wizard: build and edit Tsushima waves via `/setup-waves` and `/edit-w
 
 - Node.js 18+
 - Discord application token and `CLIENT_ID` (see `.env.example`)
+- In the Discord Developer Portal, enable the **Message Content Intent** for the bot (required to read DM text for bulk wave paste via the ✏️ button).
 
 ## Setup
 
@@ -42,6 +43,9 @@ The bot process and sqlite-web both open the same SQLite file; avoid heavy write
 |------|---------|
 | `src/index.js` | Discord client |
 | `src/handlers/setup-waves.js` | `/setup-waves` and component interactions |
+| `src/handlers/bulk-waves-message.js` | DM `messageCreate` for bulk text wave import |
+| `src/wizard/bulk-waves-text.js` | Bulk paste instructions, parser, spawn catalog |
+| `src/db/bulk-session.js` | Resolve which session waits for bulk DM input |
 | `src/db/database.js` | SQLite init + legacy JSON migration |
 | `src/db/session.js` | Session load/save/delete |
 | `src/db/tsushima-publish.js` | Published Tsushima draft (`waves_tsushima_publish`) |

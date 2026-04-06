@@ -15,6 +15,7 @@ import {
   WAVES_PER_PAGE,
 } from './constants.js';
 import { appendFlowSuffix } from './wave-custom-id.js';
+import { buildBulkInputPayload } from './bulk-waves-text.js';
 
 const LABEL_MAX = 100;
 const MOD_TRUNC = 120;
@@ -119,6 +120,14 @@ function navRow(locale, page, complete, session) {
         .setEmoji('✅')
         .setLabel(ZWSP),
     );
+  } else {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(appendFlowSuffix('waves:bulk:open', session.sourceCommand))
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji('✏️')
+        .setLabel(ZWSP),
+    );
   }
 
   row.addComponents(
@@ -139,6 +148,10 @@ function navRow(locale, page, complete, session) {
  * @param {{ en: object[], ru: object[], weeksList: { code: string, labelEn: string, labelRu: string }[] }} rotations
  */
 export function buildMessagePayload(session, rotations) {
+  if (session.uiStep === 'bulk_input') {
+    return buildBulkInputPayload(session, rotations);
+  }
+
   if (session.uiStep === 'lang') {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()

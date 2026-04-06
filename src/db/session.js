@@ -28,6 +28,7 @@ function normalizeRow(row) {
     pendingWave: row.pendingWave,
     pendingSpawn: row.pendingSpawn,
     pendingZoneIndex: row.pendingZoneIndex,
+    bulkParseError: row.bulkParseError ?? null,
     updatedAt: row.updatedAt,
   };
 }
@@ -71,6 +72,7 @@ export function saveSession(row) {
     pendingWave: row.pendingWave ?? null,
     pendingSpawn: row.pendingSpawn ?? null,
     pendingZoneIndex: row.pendingZoneIndex ?? null,
+    bulkParseError: row.bulkParseError ?? null,
     updatedAt: Date.now(),
   };
   db.prepare(

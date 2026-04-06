@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { handleSetupWavesInteraction, parseAllowedUserIds } from './handlers/setup-waves.js';
+import { handleBulkWavesDmMessage } from './handlers/bulk-waves-message.js';
 import { initDatabase } from './db/database.js';
 
 initDatabase();
@@ -19,7 +20,10 @@ if (allowed.size === 0) {
 }
 
 const client = new Client({
-  intents: [GatewayIntentBits.DirectMessages],
+  intents: [
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.MessageContent,
+  ],
   partials: [Partials.Channel],
   presence: { status: 'online' },
 });
@@ -53,6 +57,14 @@ client.once(Events.ClientReady, async (c) => {
     await c.user?.setPresence({ status: 'online' });
   } catch (e) {
     console.warn('[Presence] не удалось выставить online:', e);
+  }
+});
+
+client.on(Events.MessageCreate, async (message) => {
+  try {
+    await handleBulkWavesDmMessage(message);
+  } catch (err) {
+    console.error('MessageCreate (bulk waves)', err);
   }
 });
 
