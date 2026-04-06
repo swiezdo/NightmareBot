@@ -1,5 +1,7 @@
 node_modules/
+venv-db/
 .env
+.nightmarebot-panel-password
 data/*.db
 data/*.db-*
 data/sessions.json
