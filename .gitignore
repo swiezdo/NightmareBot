@@ -1,0 +1,9 @@
+node_modules/
+.env
+data/*.db
+data/*.db-*
+data/sessions.json
+*.bak
+
+# Выходной JSON редактора (локально / на сервере)
+waves/tsushima.json

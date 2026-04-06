@@ -1,0 +1,468 @@
+[
+    {
+      "slug": "the-defence-of-aoi-village",
+      "name": "The Defense of Aoi Village",
+      "numbers": {
+        "week1": "1.3",
+        "week2": "2.1",
+        "week3": "2.5"
+      },
+      "weeks": [
+        {
+          "code": "1.3",
+          "mod1": "Slowed Revives",
+          "mod1_icon": "slowed-revives-backdrop.svg",
+          "mod2": "Disciples of Iyo",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.1",
+          "mod1": "Slowed Revives",
+          "mod1_icon": "slowed-revives-wmod.svg",
+          "mod2": "Eyes of Iyo",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.5",
+          "mod1": "Reduced Healing",
+          "mod1_icon": "reduced-healing-wmod.svg",
+          "mod2": "Fire Spirits",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Stable",
+          "spawns": [
+            "Beach",
+            "Hut"
+          ]
+        },
+        {
+          "zone": "Villa",
+          "spawns": "Villa"
+        },
+        {
+          "zone": "Farm",
+          "spawns": [
+            "Left",
+            "Right"
+          ]
+        }
+      ],
+      "objectives": {
+        "objective1": "Perform Perfect Parry counterattacks.",
+        "objective1_icon": "perfect-parry-counters-alt.svg",
+        "objective1_num": 15,
+        "objective2": "Conquer enemies outside defense areas.",
+        "objective2_icon": "outside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Assassinate enemies from above.",
+        "objective3_icon": "assassinate-from-above-alt.svg",
+        "objective3_num": 5,
+        "objective4": "Defeat enemies with ranged attacks.",
+        "objective4_icon": "ranged-kills-alt.svg",
+        "objective4_num": 20,
+        "objective5": "Destroy enemies with fire damage.",
+        "objective5_icon": "fire-dmg-kills-alt.svg",
+        "objective5_num": 15
+      },
+      "mods": {
+        "mod1": "Toxic Clouds",
+        "mod1_icon": "toxic-clouds-backdrop.svg",
+        "mod2": "Fighting Blind",
+        "mod2_icon": "fighting-blind-backdrop.svg",
+        "mod3": "Eruption",
+        "mod3_icon": "eruption-backdrop.svg",
+        "mod4": "Fighting Blind",
+        "mod4_icon": "fighting-blind-backdrop.svg",
+        "mod5": "Eruption",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "blood-and-steel",
+      "name": "Blood and Steel",
+      "numbers": {
+        "week1": "1.6",
+        "week2": "2.4"
+      },
+      "weeks": [
+        {
+          "code": "1.6",
+          "mod1": "Tool Shortage",
+          "mod1_icon": "tool-shortage-backdrop.svg",
+          "mod2": "Eyes of Iyo",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.4",
+          "mod1": "Incapacitated",
+          "mod1_icon": "incapacitated-wmod.svg",
+          "mod2": "Disciples of Iyo",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Camp",
+          "spawns": [
+            "Left",
+            "Right"
+          ]
+        },
+        {
+          "zone": "Island",
+          "spawns": [
+            "Left",
+            "Cart"
+          ]
+        },
+        {
+          "zone": "Cliff",
+          "spawns": [
+            "Top",
+            "Cart"
+          ]
+        }
+      ],
+      "objectives": {
+        "objective1": "Defeat enemies with Assassinations or critical strikes.",
+        "objective1_icon": "assassinations-alt.svg",
+        "objective1_num": 10,
+        "objective2": "Defeat enemies inside defense areas.",
+        "objective2_icon": "inside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Shoot enemies with headshots.",
+        "objective3_icon": "headshots-alt.svg",
+        "objective3_num": 25,
+        "objective4": "Assassinate enemies from above.",
+        "objective4_icon": "assassinate-from-above-alt.svg",
+        "objective4_num": 5,
+        "objective5": "Perform Perfect Parry counterattacks.",
+        "objective5_icon": "perfect-parry-counters-alt.svg",
+        "objective5_num": 15
+      },
+      "mods": {
+        "mod1": "Fighting Blind",
+        "mod1_icon": "fighting-blind-backdrop.svg",
+        "mod2": "Slowed Revives",
+        "mod2_icon": "slowed-revives-backdrop.svg",
+        "mod3": "Burning Blades",
+        "mod3_icon": "burning-blades-backdrop.svg",
+        "mod4": "Toxic Clouds",
+        "mod4_icon": "toxic-clouds-backdrop.svg",
+        "mod5": "Eruption",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "blood-in-the-snow",
+      "name": "Blood in the Snow",
+      "numbers": {
+        "week1": "1.2",
+        "week2": "2.2"
+      },
+      "weeks": [
+        {
+          "code": "1.2",
+          "mod1": "Immunity",
+          "mod1_icon": "immunity-backdrop.svg",
+          "mod2": "Fire Spirits",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        },
+        {
+          "code": "2.2",
+          "mod1": "Incapacitated",
+          "mod1_icon": "incapacitated-wmod.svg",
+          "mod2": "Fire Spirits",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Outpost",
+          "spawns": "Outpost"
+        },
+        {
+          "zone": "Camp",
+          "spawns": "Camp"
+        },
+        {
+          "zone": "Mine",
+          "spawns": "Mine"
+        }
+      ],
+      "objectives": {
+        "objective1": "Shoot enemies with headshots.",
+        "objective1_icon": "headshots-alt.svg",
+        "objective1_num": 25,
+        "objective2": "Defeat enemies inside defense areas.",
+        "objective2_icon": "inside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Defeat enemies with Ghost weapons.",
+        "objective3_icon": "ghost-weapon-kills-backdrop.svg",
+        "objective3_num": 5,
+        "objective4": "Destroy enemies with fire damage.",
+        "objective4_icon": "fire-dmg-kills-alt.svg",
+        "objective4_num": 15,
+        "objective5": "Conquer enemies outside defense areas.",
+        "objective5_icon": "outside-zone-kills-backdrop.svg",
+        "objective5_num": 25
+      },
+      "mods": {
+        "mod1": "Wildfire",
+        "mod1_icon": "wildfire-backdrop.svg",
+        "mod2": "Eruption",
+        "mod2_icon": "eruption-backdrop.svg",
+        "mod3": "Fighting Blind",
+        "mod3_icon": "fighting-blind-backdrop.svg",
+        "mod4": "Burning Blades",
+        "mod4_icon": "burning-blades-backdrop.svg",
+        "mod5": "Eruption",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "the-shadows-of-war",
+      "name": "The Shadows of War",
+      "numbers": {
+        "week1": "1.4",
+        "week2": "1.7",
+        "week3": "2.6"
+      },
+      "weeks": [
+        {
+          "code": "1.4",
+          "mod1": "Reduced Healing",
+          "mod1_icon": "reduced-healing-wmod.svg",
+          "mod2": "Eyes of Iyo",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "1.7",
+          "mod1": "Reduced Healing",
+          "mod1_icon": "reduced-healing-wmod.svg",
+          "mod2": "Fire Spirits",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        },
+        {
+          "code": "2.6",
+          "mod1": "Empowered Foes",
+          "mod1_icon": "empowered-foes-wmod.svg",
+          "mod2": "Eyes of Iyo",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Barracks",
+          "spawns": [
+            "Left",
+            "Middle",
+            "Right"
+          ]
+        },
+        {
+          "zone": "Stable",
+          "spawns": "Stable"
+        },
+        {
+          "zone": "Dojo",
+          "spawns": [
+            "Left",
+            "Right",
+            "Deep"
+          ]
+        }
+      ],
+      "objectives": {
+        "objective1": "Shoot enemies with headshots.",
+        "objective1_icon": "headshots-alt.svg",
+        "objective1_num": 25,
+        "objective2": "Defeat enemies inside defense areas.",
+        "objective2_icon": "inside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Defeat enemies with Ghost weapons.",
+        "objective3_icon": "ghost-weapon-kills-backdrop.svg",
+        "objective3_num": 5,
+        "objective4": "Destroy enemies with fire damage.",
+        "objective4_icon": "fire-dmg-kills-alt.svg",
+        "objective4_num": 15,
+        "objective5": "Conquer enemies outside defense areas.",
+        "objective5_icon": "outside-zone-kills-backdrop.svg",
+        "objective5_num": 25
+      },
+      "mods": {
+        "mod1": "Fighting Blind",
+        "mod1_icon": "fighting-blind-backdrop.svg",
+        "mod2": "Burning Blades",
+        "mod2_icon": "burning-blades-backdrop.svg",
+        "mod3": "Toxic Clouds",
+        "mod3_icon": "toxic-clouds-backdrop.svg",
+        "mod4": "Wildfire",
+        "mod4_icon": "wildfire-backdrop.svg",
+        "mod5": "Eruption",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "the-shores-of-vengeance",
+      "name": "The Shores of Vengeance",
+      "numbers": {
+        "week1": "1.1",
+        "week2": "1.8",
+        "week3": "2.8"
+      },
+      "weeks": [
+        {
+          "code": "1.1",
+          "mod1": "Tool Shortage",
+          "mod1_icon": "tool-shortage-backdrop.svg",
+          "mod2": "Eyes of Iyo",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "1.8",
+          "mod1": "Empowered Foes",
+          "mod1_icon": "empowered-foes-wmod.svg",
+          "mod2": "Disciples of Iyo",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.8",
+          "mod1": "Slowed Revives",
+          "mod1_icon": "slowed-revives-wmod.svg",
+          "mod2": "Disciples of Iyo",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Cliff",
+          "spawns": [
+            "Forest",
+            "Hut"
+          ]
+        },
+        {
+          "zone": "Boat",
+          "spawns": "Boat"
+        },
+        {
+          "zone": "Beach",
+          "spawns": "Beach"
+        }
+      ],
+      "objectives": {
+        "objective1": "Defeat enemies with ranged attacks.",
+        "objective1_icon": "ranged-kills-alt.svg",
+        "objective1_num": 20,
+        "objective2": "Defeat enemies inside defense areas.",
+        "objective2_icon": "inside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Defeat enemies with Ghost weapons.",
+        "objective3_icon": "ghost-weapon-kills-backdrop.svg",
+        "objective3_num": 5,
+        "objective4": "Defeat enemies with Assassinations or critical strikes.",
+        "objective4_icon": "assassinations-alt.svg",
+        "objective4_num": 10,
+        "objective5": "Shoot enemies with headshots.",
+        "objective5_icon": "headshots-alt.svg",
+        "objective5_num": 25
+      },
+      "mods": {
+        "mod1": "Eruption",
+        "mod1_icon": "eruption-backdrop.svg",
+        "mod2": "Toxic Clouds",
+        "mod2_icon": "toxic-clouds-backdrop.svg",
+        "mod3": "Burning Blades",
+        "mod3_icon": "burning-blades-backdrop.svg",
+        "mod4": "Wildfire",
+        "mod4_icon": "wildfire-backdrop.svg",
+        "mod5": "Eruption",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "twilight-and-ashes",
+      "name": "Twilight and Ashes",
+      "numbers": {
+        "week1": "1.5",
+        "week2": "2.3",
+        "week3": "2.7"
+      },
+      "weeks": [
+        {
+          "code": "1.5",
+          "mod1": "Incapacitated",
+          "mod1_icon": "incapacitated-wmod.svg",
+          "mod2": "Disciples of Iyo",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.3",
+          "mod1": "Empowered Foes",
+          "mod1_icon": "empowered-foes-wmod.svg",
+          "mod2": "Eyes of Iyo",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.7",
+          "mod1": "Incapacitated",
+          "mod1_icon": "incapacitated-wmod.svg",
+          "mod2": "Fire Spirits",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Ledge",
+          "spawns": [
+            "Cliff",
+            "Boulder"
+          ]
+        },
+        {
+          "zone": "Obelisk",
+          "spawns": "Obelisk"
+        },
+        {
+          "zone": "Lighthouse",
+          "spawns": [
+            "Side",
+            "Boulder"
+          ]
+        }
+      ],
+      "objectives": {
+        "objective1": "Shoot enemies with headshots.",
+        "objective1_icon": "headshots-alt.svg",
+        "objective1_num": 25,
+        "objective2": "Assassinate enemies from above.",
+        "objective2_icon": "assassinate-from-above-alt.svg",
+        "objective2_num": 5,
+        "objective3": "Destroy enemies with fire damage.",
+        "objective3_icon": "fire-dmg-kills-alt.svg",
+        "objective3_num": 15,
+        "objective4": "Conquer enemies outside defense areas.",
+        "objective4_icon": "outside-zone-kills-backdrop.svg",
+        "objective4_num": 25,
+        "objective5": "Defeat enemies with Ghost weapons.",
+        "objective5_icon": "ghost-weapon-kills-backdrop.svg",
+        "objective5_num": 5
+      },
+      "mods": {
+        "mod1": "Toxic Clouds",
+        "mod1_icon": "toxic-clouds-backdrop.svg",
+        "mod2": "Wildfire",
+        "mod2_icon": "wildfire-backdrop.svg",
+        "mod3": "Fighting Blind",
+        "mod3_icon": "fighting-blind-backdrop.svg",
+        "mod4": "Immunity",
+        "mod4_icon": "immunity-backdrop.svg",
+        "mod5": "Eruption",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    }
+  ]

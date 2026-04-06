@@ -1,0 +1,468 @@
+[
+    {
+      "slug": "the-defence-of-aoi-village",
+      "name": "Оборона деревни Аой",
+      "numbers": {
+        "week1": "1.3",
+        "week2": "2.1",
+        "week3": "2.5"
+      },
+      "weeks": [
+        {
+          "code": "1.3",
+          "mod1": "Замедленное оживление",
+          "mod1_icon": "slowed-revives-backdrop.svg",
+          "mod2": "Приспешницы Иё",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.1",
+          "mod1": "Замедленное оживление",
+          "mod1_icon": "slowed-revives-wmod.svg",
+          "mod2": "Глаза Иё",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.5",
+          "mod1": "Ограниченное исцеление",
+          "mod1_icon": "reduced-healing-wmod.svg",
+          "mod2": "Духи огня",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Конюшня",
+          "spawns": [
+            "Пляж",
+            "Магазин"
+          ]
+        },
+        {
+          "zone": "Усадьба",
+          "spawns": "Усадьба"
+        },
+        {
+          "zone": "Хозяйство",
+          "spawns": [
+            "Лес",
+            "Поле"
+          ]
+        }
+      ],
+      "objectives": {
+        "objective1": "Выполните контратаки при идеальном парировании.",
+        "objective1_icon": "perfect-parry-counters-alt.svg",
+        "objective1_num": 15,
+        "objective2": "Победите врагов вне областей обороны.",
+        "objective2_icon": "outside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Тихо убейте врагов с высоты.",
+        "objective3_icon": "assassinate-from-above-alt.svg",
+        "objective3_num": 5,
+        "objective4": "Победите врагов в дальнем бою.",
+        "objective4_icon": "ranged-kills-alt.svg",
+        "objective4_num": 20,
+        "objective5": "Победите врагов, нанося им урон огнём.",
+        "objective5_icon": "fire-dmg-kills-alt.svg",
+        "objective5_num": 15
+      },
+      "mods": {
+        "mod1": "Ядовитые облака",
+        "mod1_icon": "toxic-clouds-backdrop.svg",
+        "mod2": "Бой вслепую",
+        "mod2_icon": "fighting-blind-backdrop.svg",
+        "mod3": "Взрыв",
+        "mod3_icon": "eruption-backdrop.svg",
+        "mod4": "Бой вслепую",
+        "mod4_icon": "fighting-blind-backdrop.svg",
+        "mod5": "Взрыв",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "blood-and-steel",
+      "name": "Кровь и Сталь",
+      "numbers": {
+        "week1": "1.6",
+        "week2": "2.4"
+      },
+      "weeks": [
+        {
+          "code": "1.6",
+          "mod1": "Недостаток орудий",
+          "mod1_icon": "tool-shortage-backdrop.svg",
+          "mod2": "Глаза Иё",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.4",
+          "mod1": "Скованный",
+          "mod1_icon": "incapacitated-wmod.svg",
+          "mod2": "Приспешницы Иё",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Лагерь",
+          "spawns": [
+            "Лево",
+            "Право"
+          ]
+        },
+        {
+          "zone": "Остров",
+          "spawns": [
+            "Лево",
+            "Телега"
+          ]
+        },
+        {
+          "zone": "Утёс",
+          "spawns": [
+            "Топ",
+            "Телега"
+          ]
+        }
+      ],
+      "objectives": {
+        "objective1": "Выполните тихие убийства или критические удары.",
+        "objective1_icon": "assassinations-alt.svg",
+        "objective1_num": 10,
+        "objective2": "Победите врагов в областях обороны.",
+        "objective2_icon": "inside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Убейте врагов попаданием в голову с расстояния.",
+        "objective3_icon": "headshots-alt.svg",
+        "objective3_num": 25,
+        "objective4": "Тихо убейте врагов с высоты.",
+        "objective4_icon": "assassinate-from-above-alt.svg",
+        "objective4_num": 5,
+        "objective5": "Выполните контратаки при идеальном парировании.",
+        "objective5_icon": "perfect-parry-counters-alt.svg",
+        "objective5_num": 15
+      },
+      "mods": {
+        "mod1": "Бой вслепую",
+        "mod1_icon": "fighting-blind-backdrop.svg",
+        "mod2": "Замедленные оживления",
+        "mod2_icon": "slowed-revives-backdrop.svg",
+        "mod3": "Горящие клинки",
+        "mod3_icon": "burning-blades-backdrop.svg",
+        "mod4": "Ядовитые облака",
+        "mod4_icon": "toxic-clouds-backdrop.svg",
+        "mod5": "Взрыв",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "blood-in-the-snow",
+      "name": "Кровь на Снегу",
+      "numbers": {
+        "week1": "1.2",
+        "week2": "2.2"
+      },
+      "weeks": [
+        {
+          "code": "1.2",
+          "mod1": "Неуязвимость",
+          "mod1_icon": "immunity-backdrop.svg",
+          "mod2": "Духи огня",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        },
+        {
+          "code": "2.2",
+          "mod1": "Скованный",
+          "mod1_icon": "incapacitated-wmod.svg",
+          "mod2": "Духи огня",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Застава",
+          "spawns": "Застава"
+        },
+        {
+          "zone": "Лагерь",
+          "spawns": "Лагерь"
+        },
+        {
+          "zone": "Рудник",
+          "spawns": "Рудник"
+        }
+      ],
+      "objectives": {
+        "objective1": "Убейте врагов попаданием в голову с расстояния.",
+        "objective1_icon": "headshots-alt.svg",
+        "objective1_num": 25,
+        "objective2": "Победите врагов в областях обороны.",
+        "objective2_icon": "inside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Победите врагов с помощью орудий Призрака.",
+        "objective3_icon": "ghost-weapon-kills-backdrop.svg",
+        "objective3_num": 5,
+        "objective4": "Победите врагов, нанося им урон огнём.",
+        "objective4_icon": "fire-dmg-kills-alt.svg",
+        "objective4_num": 15,
+        "objective5": "Победите врагов вне областей обороны.",
+        "objective5_icon": "outside-zone-kills-backdrop.svg",
+        "objective5_num": 25
+      },
+      "mods": {
+        "mod1": "Лесной пожар",
+        "mod1_icon": "wildfire-backdrop.svg",
+        "mod2": "Взрыв",
+        "mod2_icon": "eruption-backdrop.svg",
+        "mod3": "Бой вслепую",
+        "mod3_icon": "fighting-blind-backdrop.svg",
+        "mod4": "Горящие клинки",
+        "mod4_icon": "burning-blades-backdrop.svg",
+        "mod5": "Взрыв",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "the-shadows-of-war",
+      "name": "Тени Войны",
+      "numbers": {
+        "week1": "1.4",
+        "week2": "1.7",
+        "week3": "2.6"
+      },
+      "weeks": [
+        {
+          "code": "1.4",
+          "mod1": "Ограниченное исцеление",
+          "mod1_icon": "reduced-healing-wmod.svg",
+          "mod2": "Глаза Иё",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "1.7",
+          "mod1": "Ограниченное исцеление",
+          "mod1_icon": "reduced-healing-wmod.svg",
+          "mod2": "Духи огня",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        },
+        {
+          "code": "2.6",
+          "mod1": "Усиленные враги",
+          "mod1_icon": "empowered-foes-wmod.svg",
+          "mod2": "Глаза Иё",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Казармы",
+          "spawns": [
+            "Лево",
+            "Середина",
+            "Право"
+          ]
+        },
+        {
+          "zone": "Конюшня",
+          "spawns": "Конюшня"
+        },
+        {
+          "zone": "Додзё",
+          "spawns": [
+            "Лево",
+            "Право",
+            "Дип"
+          ]
+        }
+      ],
+      "objectives": {
+        "objective1": "Убейте врагов попаданием в голову с расстояния.",
+        "objective1_icon": "headshots-alt.svg",
+        "objective1_num": 25,
+        "objective2": "Победите врагов в областях обороны.",
+        "objective2_icon": "inside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Победите врагов с помощью орудий Призрака.",
+        "objective3_icon": "ghost-weapon-kills-backdrop.svg",
+        "objective3_num": 5,
+        "objective4": "Победите врагов, нанося им урон огнём.",
+        "objective4_icon": "fire-dmg-kills-alt.svg",
+        "objective4_num": 15,
+        "objective5": "Победите врагов вне областей обороны.",
+        "objective5_icon": "outside-zone-kills-backdrop.svg",
+        "objective5_num": 25
+      },
+      "mods": {
+        "mod1": "Бой вслепую",
+        "mod1_icon": "fighting-blind-backdrop.svg",
+        "mod2": "Горящие клинки",
+        "mod2_icon": "burning-blades-backdrop.svg",
+        "mod3": "Ядовитые облака",
+        "mod3_icon": "toxic-clouds-backdrop.svg",
+        "mod4": "Лесной пожар",
+        "mod4_icon": "wildfire-backdrop.svg",
+        "mod5": "Взрыв",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "the-shores-of-vengeance",
+      "name": "Берега Отмщения",
+      "numbers": {
+        "week1": "1.1",
+        "week2": "1.8",
+        "week3": "2.8"
+      },
+      "weeks": [
+        {
+          "code": "1.1",
+          "mod1": "Недостаток орудий",
+          "mod1_icon": "tool-shortage-backdrop.svg",
+          "mod2": "Глаза Иё",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "1.8",
+          "mod1": "Усиленные враги",
+          "mod1_icon": "empowered-foes-wmod.svg",
+          "mod2": "Приспешницы Иё",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.8",
+          "mod1": "Замедленное оживление",
+          "mod1_icon": "slowed-revives-wmod.svg",
+          "mod2": "Приспешницы Иё",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Утёс",
+          "spawns": [
+            "Лес",
+            "Хижина"
+          ]
+        },
+        {
+          "zone": "Лодка",
+          "spawns": "Лодка"
+        },
+        {
+          "zone": "Пляж",
+          "spawns": "Пляж"
+        }
+      ],
+      "objectives": {
+        "objective1": "Победите врагов в дальнем бою.",
+        "objective1_icon": "ranged-kills-alt.svg",
+        "objective1_num": 20,
+        "objective2": "Победите врагов в областях обороны.",
+        "objective2_icon": "inside-zone-kills-backdrop.svg",
+        "objective2_num": 25,
+        "objective3": "Победите врагов с помощью орудий Призрака.",
+        "objective3_icon": "ghost-weapon-kills-backdrop.svg",
+        "objective3_num": 5,
+        "objective4": "Выполните тихие убийства или критические удары.",
+        "objective4_icon": "assassinations-alt.svg",
+        "objective4_num": 10,
+        "objective5": "Убейте врагов попаданием в голову с расстояния.",
+        "objective5_icon": "headshots-alt.svg",
+        "objective5_num": 25
+      },
+      "mods": {
+        "mod1": "Взрыв",
+        "mod1_icon": "eruption-backdrop.svg",
+        "mod2": "Ядовитые облака",
+        "mod2_icon": "toxic-clouds-backdrop.svg",
+        "mod3": "Горящие клинки",
+        "mod3_icon": "burning-blades-backdrop.svg",
+        "mod4": "Лесной пожар",
+        "mod4_icon": "wildfire-backdrop.svg",
+        "mod5": "Взрыв",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    },
+    {
+      "slug": "twilight-and-ashes",
+      "name": "Сумерки и Пепел",
+      "numbers": {
+        "week1": "1.5",
+        "week2": "2.3",
+        "week3": "2.7"
+      },
+      "weeks": [
+        {
+          "code": "1.5",
+          "mod1": "Скованный",
+          "mod1_icon": "incapacitated-wmod.svg",
+          "mod2": "Приспешницы Иё",
+          "mod2_icon": "disciples-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.3",
+          "mod1": "Усиленные враги",
+          "mod1_icon": "empowered-foes-wmod.svg",
+          "mod2": "Глаза Иё",
+          "mod2_icon": "eyes-of-iyo-hazard.svg"
+        },
+        {
+          "code": "2.7",
+          "mod1": "Скованный",
+          "mod1_icon": "incapacitated-wmod.svg",
+          "mod2": "Духи огня",
+          "mod2_icon": "fire-spirits-hazard.svg"
+        }
+      ],
+      "zones_spawns": [
+        {
+          "zone": "Утёс",
+          "spawns": [
+            "Клиф",
+            "Болдер"
+          ]
+        },
+        {
+          "zone": "Обелиск",
+          "spawns": "Обелиск"
+        },
+        {
+          "zone": "Маяк",
+          "spawns": [
+            "Сайд",
+            "Болдер"
+          ]
+        }
+      ],
+      "objectives": {
+        "objective1": "Убейте врагов попаданием в голову с расстояния.",
+        "objective1_icon": "headshots-alt.svg",
+        "objective1_num": 25,
+        "objective2": "Тихо убейте врагов с высоты.",
+        "objective2_icon": "assassinate-from-above-alt.svg",
+        "objective2_num": 5,
+        "objective3": "Победите врагов, нанося им урон огнём.",
+        "objective3_icon": "fire-dmg-kills-alt.svg",
+        "objective3_num": 15,
+        "objective4": "Победите врагов вне областей обороны.",
+        "objective4_icon": "outside-zone-kills-backdrop.svg",
+        "objective4_num": 25,
+        "objective5": "Победите врагов с помощью орудий Призрака.",
+        "objective5_icon": "ghost-weapon-kills-backdrop.svg",
+        "objective5_num": 5
+      },
+      "mods": {
+        "mod1": "Ядовитые облака",
+        "mod1_icon": "toxic-clouds-backdrop.svg",
+        "mod2": "Лесной пожар",
+        "mod2_icon": "wildfire-backdrop.svg",
+        "mod3": "Бой вслепую",
+        "mod3_icon": "fighting-blind-backdrop.svg",
+        "mod4": "Неуязвимость",
+        "mod4_icon": "immunity-backdrop.svg",
+        "mod5": "Взрыв",
+        "mod5_icon": "eruption-backdrop.svg"
+      }
+    }
+  ]

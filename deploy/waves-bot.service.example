@@ -1,0 +1,16 @@
+[Unit]
+Description=Waves Discord bot (tsushima.json wizard)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/waves-bot
+ExecStart=/usr/bin/node src/index.js
+EnvironmentFile=-/opt/waves-bot/.env
+Restart=on-failure
+RestartSec=5
+User=waves-bot
+Group=waves-bot
+
+[Install]
+WantedBy=multi-user.target

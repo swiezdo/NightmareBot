@@ -1,0 +1,128 @@
+[
+  {
+    "week": "",
+    "credits": "",
+    "map_slug": "",
+    "map_name_en": "",
+    "map_name_ru": "",
+    "mods": [
+      {
+        "mod1_en": "",
+        "mod1_ru": "",
+        "mod1_icon": "",
+        "mod2_en": "",
+        "mod2_ru": "",
+        "mod2_icon": ""
+      }
+    ],
+    "objectives": {
+      "objective_1": {
+        "objective_en": "",
+        "objective_ru": "",
+        "objective_icon": "",
+        "objective_num": 0
+      },
+      "objective_2": {
+        "objective_en": "",
+        "objective_ru": "",
+        "objective_icon": "",
+        "objective_num": 0
+      },
+      "objective_3": {
+        "objective_en": "",
+        "objective_ru": "",
+        "objective_icon": "",
+        "objective_num": 0
+      },
+      "objective_4": {
+        "objective_en": "",
+        "objective_ru": "",
+        "objective_icon": "",
+        "objective_num": 0
+      },
+      "objective_5": {
+        "objective_en": "",
+        "objective_ru": "",
+        "objective_icon": "",
+        "objective_num": 0
+      }
+    },
+    "waves": {
+      "wave_1": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_2": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_3": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_4": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_5": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_6": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_7": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_8": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_9": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_10": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_11": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_12": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_13": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_14": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      },
+      "wave_15": {
+        "1": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "2": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" },
+        "3": { "zone_en": "", "zone_ru": "", "spawn_en": "", "spawn_ru": "" }
+      }
+    }
+  }
+]
