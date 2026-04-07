@@ -1,6 +1,6 @@
 # waves-bot
 
-Discord DM wizard: build and edit Tsushima waves via `/setup-waves` and `/edit-waves` (same `game` option, DM only). The published draft is stored in **SQLite** (`waves_tsushima_publish`), not in `waves/tsushima.json`.
+Discord DM wizard: build and edit Tsushima waves via `/setup-waves` and `/edit-waves` (same `game` option, DM only). When the grid is complete and the user presses **Done**, the bot sends a minimal JSON body to **Nightmare Club** (`PUT /api/rotations/tsushima`) using `NIGHTMARE_CLUB_TSUSHIMA_URL` and `NIGHTMARE_CLUB_TSUSHIMA_TOKEN` (the token must match `BOT_API_TOKEN_TSUSHIMA` on the site). Only after a successful API response does the bot write the same draft to **SQLite** (`waves_tsushima_publish`). If those env vars are missing, nothing is saved and the user sees a configuration hint.
 
 ## Requirements
 
@@ -13,7 +13,8 @@ Discord DM wizard: build and edit Tsushima waves via `/setup-waves` and `/edit-w
 ```bash
 npm install
 cp .env.example .env
-# fill DISCORD_TOKEN, CLIENT_ID, SETUP_WAVES_ALLOWED_USER_IDS
+# fill DISCORD_TOKEN, CLIENT_ID, SETUP_WAVES_ALLOWED_USER_IDS,
+# NIGHTMARE_CLUB_TSUSHIMA_URL, NIGHTMARE_CLUB_TSUSHIMA_TOKEN
 npm run deploy-commands   # when slash definitions change
 npm start
 ```
@@ -49,5 +50,6 @@ The bot process and sqlite-web both open the same SQLite file; avoid heavy write
 | `src/db/database.js` | SQLite init + legacy JSON migration |
 | `src/db/session.js` | Session load/save/delete |
 | `src/db/tsushima-publish.js` | Published Tsushima draft (`waves_tsushima_publish`) |
+| `src/api/nightmare-tsushima.js` | Build payload + `PUT` to Nightmare Club Tsushima endpoint |
 | `json/rotation_tsushima_*.json` | Rotation source data |
 | `waves/tsushima.json` | Legacy only: imported once into DB then renamed to `.migrated` |

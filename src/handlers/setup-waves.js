@@ -12,6 +12,11 @@ import { stripFlowSuffix } from '../wizard/wave-custom-id.js';
 import { buildMessagePayload } from '../wizard/ui.js';
 import { setWaveCell, isGridComplete } from '../wizard/grid.js';
 import { loadPublishedDraft, savePublishedDraft } from '../db/tsushima-publish.js';
+import {
+  buildTsushimaApiPayload,
+  pushTsushimaToNightmare,
+  summarizeNightmareApiFailure,
+} from '../api/nightmare-tsushima.js';
 import { GRID_PAGE_COUNT, SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
 
 const DISCORD_CONTENT_MAX = 2000;
@@ -416,23 +421,107 @@ export async function handleSetupWavesInteraction(interaction, _client) {
 
   if (id === 'waves:done') {
     const loc = /** @type {'en' | 'ru'} */ (session.locale);
+
+    if (!isGridComplete(session.draft)) {
+      await interaction.deferUpdate();
+      try {
+        await interaction.followUp({
+          content: t(loc, 'grid_incomplete').slice(0, DISCORD_CONTENT_MAX),
+          ephemeral: true,
+        });
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+
+    const apiUrl = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_URL ?? '').trim();
+    const apiToken = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
+
+    if (!apiUrl || !apiToken) {
+      await interaction.deferUpdate();
+      try {
+        await interaction.followUp({
+          content: t(loc, 'api_not_configured').slice(0, DISCORD_CONTENT_MAX),
+          ephemeral: true,
+        });
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+
+    /** @type {Record<string, unknown>} */
+    let payload;
     try {
-      savePublishedDraft(session.game, session.draft);
+      payload = buildTsushimaApiPayload(session.draft);
+    } catch (e) {
+      console.error('buildTsushimaApiPayload', e);
+      await interaction.deferUpdate();
+      try {
+        await interaction.followUp({ content: t(loc, 'api_payload_error'), ephemeral: true });
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+
+    try {
+      const result = await pushTsushimaToNightmare(payload, { url: apiUrl, token: apiToken });
+      if (!result.ok) {
+        console.error('pushTsushimaToNightmare', result.status, result.json);
+        const detail = summarizeNightmareApiFailure(result);
+        const msg = `${t(loc, 'api_publish_failed_prefix')}\n${detail}`.slice(0, DISCORD_CONTENT_MAX);
+        await interaction.deferUpdate();
+        try {
+          await interaction.followUp({ content: msg, ephemeral: true });
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      try {
+        savePublishedDraft(session.game, session.draft);
+      } catch (e) {
+        console.error('savePublishedDraft after API ok', e);
+        await interaction.deferUpdate();
+        await interaction.message.edit({
+          content: t(loc, 'save_error'),
+          components: [],
+          embeds: [],
+        });
+        return;
+      }
+
       deleteSession(interaction.user.id, session.sourceCommand);
       await interaction.deferUpdate();
+      const weekStart =
+        result.json &&
+        typeof result.json === 'object' &&
+        result.json !== null &&
+        'week_start' in result.json
+          ? String(/** @type {{ week_start?: string }} */ (result.json).week_start ?? '')
+          : '';
+      const weekLine = weekStart
+        ? `\n${t(loc, 'api_week_line').replace('{week}', weekStart)}`
+        : '';
       await interaction.message.edit({
-        content: `${t(loc, 'saved_success')}\n${t(loc, 'confirm_saved')}`,
+        content: `${t(loc, 'saved_success_api')}${weekLine}\n${t(loc, 'confirm_saved')}`.slice(
+          0,
+          DISCORD_CONTENT_MAX,
+        ),
         components: [],
         embeds: [],
       });
     } catch (e) {
-      console.error('savePublishedDraft', e);
+      console.error('waves:done api', e);
       await interaction.deferUpdate();
-      await interaction.message.edit({
-        content: t(loc, 'save_error'),
-        components: [],
-        embeds: [],
-      });
+      try {
+        await interaction.followUp({ content: t(loc, 'api_network_error'), ephemeral: true });
+      } catch {
+        /* ignore */
+      }
     }
   }
 }
