@@ -13,22 +13,22 @@ export const strings = {
     dm_only: 'This bot only works in direct messages. Open a DM with the bot and run the command here.',
     game_not_available: 'This game is not available in the editor yet.',
     saved_success: 'Saved to the bot database (SQLite).',
-    saved_success_api:
-      'Published to Nightmare Club and saved to the bot database (SQLite).',
+    saved_success_api: 'Published to Nightmare Club.',
     api_not_configured:
-      'Nightmare Club API is not configured. Set **NIGHTMARE_CLUB_TSUSHIMA_URL** and **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** in `.env` (same token as `BOT_API_TOKEN_TSUSHIMA` on the site). Nothing was saved.',
+      'Nightmare Club API is not configured. Set **NIGHTMARE_CLUB_TSUSHIMA_URL** and **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** in `.env` (same token as `BOT_API_TOKEN_TSUSHIMA` on the site).',
     api_payload_error: 'Internal error building the API payload. Check logs.',
     api_network_error: 'Network error while calling Nightmare Club. Try again later.',
     api_publish_failed_prefix: 'Nightmare Club rejected the publish:',
     api_week_line: 'Site week (week_start): **{week}**',
     grid_incomplete: 'The wave grid is not complete yet.',
-    save_error: 'Failed to save to the database. Check bot logs.',
     setup_reset: 'Starting over. Use the buttons below.',
     edit_panel_reopened: 'Edit session: panel updated below.',
     week_prefix: 'Map:',
     all_filled_hint: 'All wave slots are filled. Press **Done** to save.',
     confirm_saved: 'You can run `/setup-waves` or `/edit-waves` again.',
     session_stale: 'Session expired or missing. Run `/setup-waves` or `/edit-waves` again.',
+    wizard_message_deleted:
+      'The wizard message was deleted or is no longer available. Run `/setup-waves` or `/edit-waves` again to open a new panel.',
     grid_page: 'Page {cur}/{tot}',
     btn_prev: 'Back',
     btn_next: 'Next',
@@ -37,8 +37,14 @@ export const strings = {
     wave_spawn_header: 'Wave {wave} - Spawn {wave}.{slot}',
     zone_line_prefix: 'Zone:',
     btn_wizard_back: 'Back',
-    edit_tsushima_missing: 'No saved Tsushima waves in the database yet. Run `/setup-waves` first and press **Done**.',
-    edit_tsushima_invalid: 'Stored Tsushima data is invalid. Check the `waves_tsushima_publish` row in the bot database.',
+    edit_tsushima_missing:
+      'No Tsushima rotation for the current site week (empty API `maps`). Publish from `/setup-waves` first or check Nightmare Club.',
+    edit_tsushima_invalid:
+      'Could not build the editor draft from the Nightmare Club response (bad or unexpected JSON).',
+    edit_tsushima_week_unknown:
+      'This `week_code` from the site is not in `json/rotation_tsushima_*.json`. Update the rotation JSON files in the bot and redeploy.',
+    edit_tsushima_multi_map_note:
+      'Note: the API returned several maps for this week; the editor opened the **first** entry.',
     week_not_in_rotation:
       'This **week** is not in the current rotation JSON. Run `/setup-waves` to pick a valid week or fix stored data.',
     week_select_failed: 'That week is no longer in rotation. Pick another one below.',
@@ -85,21 +91,22 @@ export const strings = {
     dm_only: 'Бот работает только в личных сообщениях. Откройте ЛС с ботом и выполните команду там.',
     game_not_available: 'Эта игра пока недоступна в редакторе.',
     saved_success: 'Сохранено в базу бота (SQLite).',
-    saved_success_api: 'Опубликовано в Nightmare Club и сохранено в базу бота (SQLite).',
+    saved_success_api: 'Опубликовано в Nightmare Club.',
     api_not_configured:
-      'API Nightmare Club не настроено. Задайте **NIGHTMARE_CLUB_TSUSHIMA_URL** и **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** в `.env` (тот же токен, что `BOT_API_TOKEN_TSUSHIMA` на сайте). Ничего не сохранено.',
+      'API Nightmare Club не настроено. Задайте **NIGHTMARE_CLUB_TSUSHIMA_URL** и **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** в `.env` (тот же токен, что `BOT_API_TOKEN_TSUSHIMA` на сайте).',
     api_payload_error: 'Внутренняя ошибка сборки запроса к API. См. логи.',
     api_network_error: 'Сетевая ошибка при обращении к Nightmare Club. Попробуйте позже.',
     api_publish_failed_prefix: 'Nightmare Club отклонил публикацию:',
     api_week_line: 'Неделя на сайте (week_start): **{week}**',
     grid_incomplete: 'Сетка волн заполнена не полностью.',
-    save_error: 'Не удалось сохранить в базу. Проверьте логи.',
     setup_reset: 'Начинаем заново. Используйте кнопки ниже.',
     edit_panel_reopened: 'Редактирование: панель обновлена ниже.',
     week_prefix: 'Карта:',
     all_filled_hint: 'Все ячейки заполнены. Нажмите **Готово**, чтобы сохранить.',
     confirm_saved: 'Можно снова вызвать `/setup-waves` или `/edit-waves`.',
     session_stale: 'Сессия сброшена или устарела. Запустите `/setup-waves` или `/edit-waves`.',
+    wizard_message_deleted:
+      'Сообщение мастера удалено или недоступно. Запустите `/setup-waves` или `/edit-waves`, чтобы открыть новую панель.',
     grid_page: 'Страница {cur}/{tot}',
     btn_prev: 'Назад',
     btn_next: 'Далее',
@@ -108,8 +115,14 @@ export const strings = {
     wave_spawn_header: 'Волна {wave} - Спавн {wave}.{slot}',
     zone_line_prefix: 'Зона:',
     btn_wizard_back: 'Назад',
-    edit_tsushima_missing: 'В базе ещё нет сохранённых волн Tsushima. Сначала выполните `/setup-waves` и нажмите **Готово**.',
-    edit_tsushima_invalid: 'Данные Tsushima в базе повреждены. Проверьте строку `waves_tsushima_publish` в SQLite.',
+    edit_tsushima_missing:
+      'Нет ротации Tsushima на текущую неделю на сайте (пустой `maps` в API). Сначала опубликуйте через `/setup-waves` или проверьте сайт.',
+    edit_tsushima_invalid:
+      'Не удалось собрать черновик из ответа Nightmare Club (некорректный или неожиданный JSON).',
+    edit_tsushima_week_unknown:
+      'Код недели с сайта не найден в `json/rotation_tsushima_*.json`. Обновите файлы ротации в боте и перезапустите.',
+    edit_tsushima_multi_map_note:
+      'В ответе API несколько карт на эту неделю; открыта **первая** запись.',
     week_not_in_rotation:
       'Эта **неделя** не найдена в текущем rotation JSON. Запустите `/setup-waves`, чтобы выбрать актуальную неделю, или исправьте данные в базе.',
     week_select_failed: 'Этой недели больше нет в ротации. Выберите другую ниже.',

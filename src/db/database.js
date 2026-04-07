@@ -1,8 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
-import { DATA_DIR, DB_PATH, TSUSHIMA_OUTPUT_PATH } from '../paths.js';
-import { normalizeDraftShape } from '../data/rotation.js';
+import { DATA_DIR, DB_PATH } from '../paths.js';
 
 /** @type {import('better-sqlite3').default | null} */
 let db = null;
@@ -66,47 +65,12 @@ export function initDatabase() {
     );
     CREATE INDEX IF NOT EXISTS idx_setup_waves_sessions_updated_at
       ON setup_waves_sessions (updated_at);
-
-    CREATE TABLE IF NOT EXISTS waves_tsushima_publish (
-      game TEXT PRIMARY KEY NOT NULL,
-      payload TEXT NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
   `);
+
+  db.exec('DROP TABLE IF EXISTS waves_tsushima_publish;');
 
   migrateLegacySessionsJson();
   migrateSessionKeysToScoped();
-  migrateTsushimaJsonToSqlite();
-}
-
-/** One-time import from legacy waves/tsushima.json when DB has no row for tsushima. */
-function migrateTsushimaJsonToSqlite() {
-  const exists = db
-    .prepare('SELECT 1 AS x FROM waves_tsushima_publish WHERE game = ?')
-    .get('tsushima');
-  if (exists) return;
-  if (!fs.existsSync(TSUSHIMA_OUTPUT_PATH)) return;
-
-  try {
-    const raw = fs.readFileSync(TSUSHIMA_OUTPUT_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return;
-    const first = parsed[0];
-    if (!first || typeof first !== 'object') return;
-    const draft = normalizeDraftShape(first);
-    const payload = JSON.stringify([draft]);
-    const now = Date.now();
-    db.prepare(
-      `
-      INSERT INTO waves_tsushima_publish (game, payload, updated_at)
-      VALUES ('tsushima', @payload, @updated_at)
-    `,
-    ).run({ payload, updated_at: now });
-    fs.renameSync(TSUSHIMA_OUTPUT_PATH, `${TSUSHIMA_OUTPUT_PATH}.migrated`);
-    console.log('[db] Migrated waves/tsushima.json to SQLite; renamed to tsushima.json.migrated');
-  } catch (e) {
-    console.error('[db] tsushima.json migration failed:', e);
-  }
 }
 
 /** Legacy rows used Discord user_id only; scope to setup-waves so edit-waves can have its own row. */

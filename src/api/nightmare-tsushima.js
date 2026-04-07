@@ -1,4 +1,6 @@
 import { SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
+import { findWeekContext, buildDraftFromWeek, translateZoneSpawn } from '../data/rotation.js';
+import { normalizeWaveSpawns } from '../utils/tsushima-waves-format.js';
 
 /** Matches nightmare-club schema maxLength for credit_text. */
 export const CREDIT_TEXT_MAX = 500;
@@ -124,6 +126,79 @@ export async function fetchTsushimaRotationRead(opts) {
   }
 
   return { ok: res.ok, status: res.status, data };
+}
+
+/**
+ * Build wizard draft from GET /api/rotation/tsushima body + local rotation JSON.
+ * Uses the first map when `maps.length > 1`.
+ *
+ * @param {unknown} apiJson
+ * @param {{ en: import('../data/rotation.js').RotationMap[], ru: import('../data/rotation.js').RotationMap[] }} rotations
+ * @returns {{ ok: true, draft: object, multiMap: boolean } | { ok: false, reason: 'empty_maps' | 'bad_shape' | 'week_unknown' }}
+ */
+export function buildDraftFromTsushimaReadApi(apiJson, rotations) {
+  const { en, ru } = rotations;
+  if (!apiJson || typeof apiJson !== 'object') {
+    return { ok: false, reason: 'bad_shape' };
+  }
+  const maps = /** @type {{ maps?: unknown }} */ (apiJson).maps;
+  if (!Array.isArray(maps) || maps.length === 0) {
+    return { ok: false, reason: 'empty_maps' };
+  }
+
+  const entry = maps[0];
+  if (!entry || typeof entry !== 'object') {
+    return { ok: false, reason: 'bad_shape' };
+  }
+  const row = /** @type {Record<string, unknown>} */ (entry);
+  const weekCode = String(row.week_code ?? '').trim();
+  if (!weekCode) {
+    return { ok: false, reason: 'bad_shape' };
+  }
+
+  const ctx = findWeekContext(en, ru, weekCode);
+  if (!ctx) {
+    return { ok: false, reason: 'week_unknown' };
+  }
+
+  const apiSlug = String(row.map_slug ?? '').trim();
+  if (apiSlug && apiSlug !== ctx.enMap.slug) {
+    console.warn(
+      '[tsushima] API map_slug differs from rotation JSON:',
+      apiSlug,
+      'vs',
+      ctx.enMap.slug,
+    );
+  }
+
+  const draft = buildDraftFromWeek(ctx);
+  const creditRaw = row.credit_text;
+  draft.credits = creditRaw != null ? String(creditRaw) : '';
+
+  const wavesArr = Array.isArray(row.waves) ? row.waves : [];
+  for (let idx = 0; idx < wavesArr.length; idx++) {
+    const w = wavesArr[idx];
+    if (!w || typeof w !== 'object') continue;
+    const o = /** @type {Record<string, unknown>} */ (w);
+    const waveNum = Number(o.wave ?? idx + 1);
+    if (!Number.isFinite(waveNum) || waveNum < 1 || waveNum > TOTAL_WAVES) continue;
+
+    const waveKey = `wave_${waveNum}`;
+    const spawns = normalizeWaveSpawns(o.spawns);
+    for (const { order, zone, spawn } of spawns) {
+      if (order < 1 || order > SLOTS_PER_WAVE) continue;
+      const slot = String(order);
+      const tr = translateZoneSpawn(ctx.enMap, ctx.ruMap, zone, spawn);
+      draft.waves[waveKey][slot] = {
+        zone_en: zone,
+        zone_ru: tr.zone,
+        spawn_en: spawn,
+        spawn_ru: tr.spawn,
+      };
+    }
+  }
+
+  return { ok: true, draft, multiMap: maps.length > 1 };
 }
 
 /**

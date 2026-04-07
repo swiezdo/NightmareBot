@@ -2,7 +2,7 @@
 
 Discord DM wizard: build and edit Tsushima waves via `/setup-waves` and `/edit-waves` (same `game` option, DM only). Command **`/waves`** (same allowlist and DM-only rules) takes **`game`** (Tsushima / Yōtei) and **`lang`** (English / Русский). **Tsushima**: **`GET /api/rotation/tsushima`** + **`NIGHTMARE_CLUB_TSUSHIMA_TOKEN`**; optional **`NIGHTMARE_CLUB_TSUSHIMA_READ_URL`**. **Yōtei**: **`GET /api/rotation/yotei`** + **`NIGHTMARE_CLUB_YOTEI_TOKEN`** (same as `BOT_API_TOKEN_YOTEI` on the site); optional **`NIGHTMARE_CLUB_YOTEI_READ_URL`** or derive from **`NIGHTMARE_CLUB_YOTEI_URL`** (`…/api/rotations/yotei` → `…/api/rotation/yotei`); default read URL `https://nightmare.club/api/rotation/yotei`. Tsushima map/modifier/bonus text uses local **`json/rotation_tsushima_*.json`**; Yōtei text comes from the API (English from DB in v1).
 
-When the grid is complete and the user presses **Done**, a **modal** asks for **Credits** (optional; UI strings follow the wizard language). If the field is left empty, **`Submitted by NightmareBot`** is sent as `credit_text`. Then the bot sends the JSON body to **Nightmare Club** (`PUT /api/rotations/tsushima`) with `NIGHTMARE_CLUB_TSUSHIMA_URL` and `NIGHTMARE_CLUB_TSUSHIMA_TOKEN`. Only after a successful API response does it write the draft to **SQLite** (`waves_tsushima_publish`). If those env vars are missing, nothing is saved and the user sees a configuration hint.
+When the grid is complete and the user presses **Done**, a **modal** asks for **Credits** (optional; UI strings follow the wizard language). If the field is left empty, **`Submitted by NightmareBot`** is sent as `credit_text`. Then the bot sends the JSON body to **Nightmare Club** (`PUT /api/rotations/tsushima`) with `NIGHTMARE_CLUB_TSUSHIMA_URL` and `NIGHTMARE_CLUB_TSUSHIMA_TOKEN`. **`/edit-waves`** (Tsushima only) loads the current site week via **`GET /api/rotation/tsushima`** with the same token, merges `week_code` + `waves` + `map_slug` + `credit_text` from the API with local **`json/rotation_tsushima_*.json`** (mods/objectives/RU cells), and opens the wizard prefilled — no published draft is stored in SQLite.
 
 ## Requirements
 
@@ -25,7 +25,7 @@ npm start
 
 - **Sessions** are stored in **`data/waves_bot.db`** (SQLite via `better-sqlite3`), not in `sessions.json`.
 - On first startup, if **`data/sessions.json`** exists and the DB table is empty, rows are imported and the file is renamed to **`data/sessions.json.migrated`**.
-- If **`waves/tsushima.json`** exists and there is no published row for Tsushima yet, it is imported into **`waves_tsushima_publish`** and the file is renamed to **`waves/tsushima.json.migrated`**.
+- Legacy table **`waves_tsushima_publish`** is dropped on bot startup if it exists (publishing no longer mirrors to SQLite).
 - Do not commit `.db` files or `.env` (see `.gitignore`).
 
 ## sqlite-web (database browser UI)
@@ -51,11 +51,9 @@ The bot process and sqlite-web both open the same SQLite file; avoid heavy write
 | `src/db/bulk-session.js` | Resolve which session waits for bulk DM input |
 | `src/db/database.js` | SQLite init + legacy JSON migration |
 | `src/db/session.js` | Session load/save/delete |
-| `src/db/tsushima-publish.js` | Published Tsushima draft (`waves_tsushima_publish`) |
-| `src/api/nightmare-tsushima.js` | `PUT` payload + `GET` Tsushima for `/waves` |
+| `src/api/nightmare-tsushima.js` | `PUT` payload, `GET` Tsushima, draft build for `/edit-waves` and `/waves` |
 | `src/api/nightmare-yotei.js` | `GET` Yōtei rotation for `/waves` |
 | `src/utils/tsushima-waves-format.js` | Tsushima API + local JSON → Discord chunks |
 | `src/utils/yotei-waves-format.js` | Yōtei API → Discord chunks |
 | `src/handlers/waves-command.js` | Slash `/waves` (DM, allowlist) |
-| `json/rotation_tsushima_*.json` | Rotation source data |
-| `waves/tsushima.json` | Legacy only: imported once into DB then renamed to `.migrated` |
+| `json/rotation_tsushima_*.json` | Rotation source data (week codes, RU cells, objectives) |

@@ -1,4 +1,4 @@
-import { loadRotations, findWeekContext, normalizeSpawns } from '../data/rotation.js';
+import { loadRotations, findWeekContext, translateZoneSpawn } from '../data/rotation.js';
 
 /** Запас под лимит Discord 2000. */
 const DISCORD_CHUNK_MAX = 1900;
@@ -12,34 +12,6 @@ function waveLinePrefix(indexZeroBased) {
   const n = indexZeroBased + 1;
   if (n >= 1 && n <= KEYCAP_PREFIXES.length) return KEYCAP_PREFIXES[n - 1];
   return `${n}.`;
-}
-
-/**
- * @param {import('../data/rotation.js').RotationMap} enMap
- * @param {import('../data/rotation.js').RotationMap} ruMap
- * @param {string} zoneEn
- * @param {string} spawnEn
- */
-function translateZoneSpawn(enMap, ruMap, zoneEn, spawnEn) {
-  const enZones = enMap.zones_spawns || [];
-  const ruZones = ruMap.zones_spawns || [];
-  for (let i = 0; i < enZones.length; i++) {
-    const ze = enZones[i];
-    const zr = ruZones[i];
-    if (!ze || !zr) continue;
-    if (ze.zone !== zoneEn) continue;
-    const spEn = normalizeSpawns(ze.spawns);
-    const spRu = normalizeSpawns(zr.spawns);
-    const idx = spEn.indexOf(spawnEn);
-    if (idx >= 0 && spRu[idx] != null) {
-      return { zone: zr.zone, spawn: spRu[idx] };
-    }
-    if (spEn.length === 1 && spRu.length >= 1) {
-      return { zone: zr.zone, spawn: spRu[0] };
-    }
-    return { zone: zr.zone, spawn: spawnEn };
-  }
-  return { zone: zoneEn, spawn: spawnEn };
 }
 
 /**
@@ -63,7 +35,7 @@ function formatObjectivesLines(map) {
  * @param {unknown} spawnsRaw
  * @returns {Array<{ order: number, zone: string, spawn: string }>}
  */
-function normalizeWaveSpawns(spawnsRaw) {
+export function normalizeWaveSpawns(spawnsRaw) {
   if (!Array.isArray(spawnsRaw)) return [];
   return spawnsRaw
     .map((s, i) => {

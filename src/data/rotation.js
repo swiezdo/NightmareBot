@@ -97,6 +97,37 @@ export function findWeekContext(en, ru, code) {
 }
 
 /**
+ * EN zone/spawn → RU labels using paired zones_spawns (same as /waves display).
+ *
+ * @param {RotationMap} enMap
+ * @param {RotationMap} ruMap
+ * @param {string} zoneEn
+ * @param {string} spawnEn
+ * @returns {{ zone: string, spawn: string }}
+ */
+export function translateZoneSpawn(enMap, ruMap, zoneEn, spawnEn) {
+  const enZones = enMap.zones_spawns || [];
+  const ruZones = ruMap.zones_spawns || [];
+  for (let i = 0; i < enZones.length; i++) {
+    const ze = enZones[i];
+    const zr = ruZones[i];
+    if (!ze || !zr) continue;
+    if (ze.zone !== zoneEn) continue;
+    const spEn = normalizeSpawns(ze.spawns);
+    const spRu = normalizeSpawns(zr.spawns);
+    const idx = spEn.indexOf(spawnEn);
+    if (idx >= 0 && spRu[idx] != null) {
+      return { zone: zr.zone, spawn: spRu[idx] };
+    }
+    if (spEn.length === 1 && spRu.length >= 1) {
+      return { zone: zr.zone, spawn: spRu[0] };
+    }
+    return { zone: zr.zone, spawn: spawnEn };
+  }
+  return { zone: zoneEn, spawn: spawnEn };
+}
+
+/**
  * @param {object} enObj
  * @param {object} ruObj
  */

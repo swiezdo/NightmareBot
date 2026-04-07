@@ -17,11 +17,12 @@ import { getSession, saveSession, deleteSession } from '../db/session.js';
 import { appendFlowSuffix, stripFlowSuffix } from '../wizard/wave-custom-id.js';
 import { buildMessagePayload } from '../wizard/ui.js';
 import { setWaveCell, isGridComplete } from '../wizard/grid.js';
-import { loadPublishedDraft, savePublishedDraft } from '../db/tsushima-publish.js';
 import {
+  buildDraftFromTsushimaReadApi,
   buildTsushimaApiPayload,
   CREDIT_TEXT_MAX,
   DEFAULT_TSUSHIMA_CREDIT_TEXT,
+  fetchTsushimaRotationRead,
   pushTsushimaToNightmare,
   summarizeNightmareApiFailure,
 } from '../api/nightmare-tsushima.js';
@@ -64,22 +65,6 @@ async function publishTsushimaAfterCredits(interaction, session, loc) {
       const detail = summarizeNightmareApiFailure(result);
       const msg = `${t(loc, 'api_publish_failed_prefix')}\n${detail}`.slice(0, DISCORD_CONTENT_MAX);
       await interaction.editReply({ content: msg });
-      return;
-    }
-
-    try {
-      savePublishedDraft(session.game, session.draft);
-    } catch (e) {
-      console.error('savePublishedDraft after API ok', e);
-      await interaction.editReply({ content: t(loc, 'save_error') });
-      if (session.messageId && interaction.channel?.isTextBased()) {
-        try {
-          const m = await interaction.channel.messages.fetch(session.messageId);
-          await m.edit({ content: t(loc, 'save_error'), components: [], embeds: [] });
-        } catch {
-          /* ignore */
-        }
-      }
       return;
     }
 
@@ -132,6 +117,46 @@ function mergePayloadContent(prefix, payload) {
     components: payload.components,
     embeds: payload.embeds ?? [],
   };
+}
+
+/**
+ * @param {unknown} e
+ */
+function isDiscordUnknownMessage(e) {
+  return (
+    e !== null &&
+    typeof e === 'object' &&
+    'code' in e &&
+    /** @type {{ code?: number }} */ (e).code === 10_008
+  );
+}
+
+/**
+ * After deferUpdate: update the wizard message, or recover if it was deleted (Discord 10008).
+ * Uses interaction.editReply — required for ephemeral slash replies (/edit-waves); message.edit() hits the channel endpoint and returns 10008 for those.
+ *
+ * @param {import('discord.js').MessageComponentInteraction} interaction
+ * @param {object} session
+ * @param {import('discord.js').InteractionEditReplyOptions} payload
+ */
+async function editWizardMessageOrRecover(interaction, session, payload) {
+  try {
+    await interaction.editReply(payload);
+  } catch (e) {
+    if (!isDiscordUnknownMessage(e)) throw e;
+    session.messageId = null;
+    session.channelId = null;
+    saveSession(session);
+    const loc = /** @type {'en' | 'ru'} */ (session.locale ?? 'en');
+    try {
+      await interaction.followUp({
+        content: t(loc, 'wizard_message_deleted').slice(0, DISCORD_CONTENT_MAX),
+        ephemeral: true,
+      });
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 /** @param {string | undefined} raw */
@@ -255,19 +280,55 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       return;
     }
 
-    const loaded = loadPublishedDraft(game);
-    if (!loaded.ok) {
-      const loc = allowed.has(interaction.user.id) ? 'ru' : 'en';
+    const loc = allowed.has(interaction.user.id) ? 'ru' : 'en';
+    await interaction.deferReply({ ephemeral: true });
+
+    const token = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
+    if (!token) {
+      await interaction.editReply({ content: t(loc, 'api_not_configured') });
+      return;
+    }
+
+    /** @type {unknown} */
+    let data;
+    try {
+      const r = await fetchTsushimaRotationRead({ token });
+      if (r.status === 401) {
+        await interaction.editReply({ content: t(loc, 'waves_read_401') });
+        return;
+      }
+      if (!r.ok) {
+        await interaction.editReply({
+          content: t(loc, 'waves_read_http').replace('{status}', String(r.status)),
+        });
+        return;
+      }
+      data = r.data;
+    } catch (e) {
+      const isTimeout =
+        e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
+      await interaction.editReply({
+        content: isTimeout ? t(loc, 'waves_read_timeout') : t(loc, 'waves_read_network'),
+      });
+      return;
+    }
+
+    const built = buildDraftFromTsushimaReadApi(data, rotations);
+    if (!built.ok) {
       const key =
-        loaded.reason === 'missing' ? 'edit_tsushima_missing' : 'edit_tsushima_invalid';
-      await interaction.reply({ content: t(loc, key), ephemeral: true });
+        built.reason === 'empty_maps'
+          ? 'edit_tsushima_missing'
+          : built.reason === 'week_unknown'
+            ? 'edit_tsushima_week_unknown'
+            : 'edit_tsushima_invalid';
+      await interaction.editReply({ content: t(loc, key) });
       return;
     }
 
     const prev = getSession(interaction.user.id, 'edit-waves');
     const session = newSession(interaction.user.id, game, {
       sourceCommand: 'edit-waves',
-      draft: loaded.draft,
+      draft: built.draft,
     });
     if (prev?.messageId && prev?.channelId) {
       session.messageId = prev.messageId;
@@ -281,10 +342,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         const msg = await interaction.channel.messages.fetch(session.messageId);
         await msg.edit(payload);
         saveSession(session);
-        await interaction.reply({
-          content: `${t('ru', 'edit_panel_reopened')} · ${t('en', 'edit_panel_reopened')}`,
-          ephemeral: true,
-        });
+        let ack = `${t('ru', 'edit_panel_reopened')} · ${t('en', 'edit_panel_reopened')}`;
+        if (built.multiMap) {
+          ack = `${ack}\n${t(loc, 'edit_tsushima_multi_map_note')}`;
+        }
+        await interaction.editReply({ content: ack });
         return;
       } catch {
         session.messageId = null;
@@ -292,10 +354,13 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       }
     }
 
-    const msg = await interaction.reply({ ...payload, fetchReply: true });
+    const msg = await interaction.editReply({ ...payload });
     session.messageId = msg.id;
     session.channelId = msg.channelId;
     saveSession(session);
+    if (built.multiMap) {
+      await interaction.followUp({ content: t(loc, 'edit_tsushima_multi_map_note'), ephemeral: true });
+    }
     return;
   }
 
@@ -340,7 +405,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.uiStep = session.sourceCommand === 'edit-waves' ? 'grid' : 'week';
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
@@ -351,7 +420,9 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       const loc = /** @type {'en' | 'ru'} */ (session.locale);
       await interaction.deferUpdate();
       const payload = buildMessagePayload(session, rotations);
-      await interaction.message.edit(
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
         mergePayloadContent(t(loc, 'week_select_failed'), payload),
       );
       return;
@@ -361,35 +432,55 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.gridPage = 0;
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
   if (id === 'waves:bulk:open') {
     if (session.uiStep !== 'grid' || isGridComplete(session.draft)) {
       await interaction.deferUpdate();
-      await interaction.message.edit(buildMessagePayload(session, rotations));
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, rotations),
+      );
       return;
     }
     session.uiStep = 'bulk_input';
     session.bulkParseError = null;
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
   if (id === 'waves:bulk:cancel') {
     if (session.uiStep !== 'bulk_input') {
       await interaction.deferUpdate();
-      await interaction.message.edit(buildMessagePayload(session, rotations));
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, rotations),
+      );
       return;
     }
     session.uiStep = 'grid';
     session.bulkParseError = null;
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
@@ -401,7 +492,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         : Math.min(GRID_PAGE_COUNT - 1, cur + 1);
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
@@ -417,7 +512,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       } catch {
         /* ignore */
       }
-      await interaction.message.edit(buildMessagePayload(session, rotations));
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, rotations),
+      );
       return;
     }
     session.pendingWave = group;
@@ -426,7 +525,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.uiStep = 'zone';
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
@@ -437,7 +540,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.pendingZoneIndex = null;
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
@@ -446,7 +553,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.pendingZoneIndex = null;
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
@@ -463,7 +574,9 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       saveSession(session);
       await interaction.deferUpdate();
       const payload = buildMessagePayload(session, rotations);
-      await interaction.message.edit(
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
         mergePayloadContent(t(loc, 'week_not_in_rotation'), payload),
       );
       return;
@@ -487,14 +600,22 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       session.pendingZoneIndex = null;
       saveSession(session);
       await interaction.deferUpdate();
-      await interaction.message.edit(buildMessagePayload(session, rotations));
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, rotations),
+      );
       return;
     }
 
     session.uiStep = 'spawn';
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
@@ -513,7 +634,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       const prefix = !ctx
         ? t(loc, 'week_not_in_rotation')
         : t(loc, 'invalid_wave_slot');
-      await interaction.message.edit(mergePayloadContent(prefix, payload));
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        mergePayloadContent(prefix, payload),
+      );
       return;
     }
     const zi = session.pendingZoneIndex;
@@ -535,7 +660,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.pendingZoneIndex = null;
     saveSession(session);
     await interaction.deferUpdate();
-    await interaction.message.edit(buildMessagePayload(session, rotations));
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
     return;
   }
 
