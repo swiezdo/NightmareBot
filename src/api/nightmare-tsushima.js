@@ -1,11 +1,14 @@
 import { SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
 
 /** Matches nightmare-club schema maxLength for credit_text. */
-const CREDIT_TEXT_MAX = 500;
+export const CREDIT_TEXT_MAX = 500;
+
+/** Used when the user leaves Credits empty in the publish modal. */
+export const DEFAULT_TSUSHIMA_CREDIT_TEXT = 'Submitted by NightmareBot';
 
 /**
  * Minimal body for PUT /api/rotations/tsushima (whitelist only).
- * Omits credit_text when empty.
+ * Always sends credit_text (default string if draft credits empty).
  *
  * @param {object} draft — session.draft from rotation wizard
  * @returns {Record<string, unknown>}
@@ -32,13 +35,15 @@ export function buildTsushimaApiPayload(draft) {
     waves.push({ wave: w, spawns });
   }
 
-  /** @type {Record<string, unknown>} */
-  const out = { map_slug, week_code, waves };
-  const credits = String(draft.credits ?? '').trim();
-  if (credits) {
-    out.credit_text = credits.slice(0, CREDIT_TEXT_MAX);
-  }
-  return out;
+  const creditRaw = String(draft.credits ?? '').trim();
+  const credit_text = (creditRaw || DEFAULT_TSUSHIMA_CREDIT_TEXT).slice(0, CREDIT_TEXT_MAX);
+
+  return {
+    map_slug,
+    week_code,
+    waves,
+    credit_text,
+  };
 }
 
 /**

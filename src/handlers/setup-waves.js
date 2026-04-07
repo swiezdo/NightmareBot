@@ -1,4 +1,10 @@
-import { ChannelType } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ChannelType,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+} from 'discord.js';
 import { t } from '../i18n/strings.js';
 import {
   loadRotations,
@@ -8,18 +14,109 @@ import {
   createEmptyDraft,
 } from '../data/rotation.js';
 import { getSession, saveSession, deleteSession } from '../db/session.js';
-import { stripFlowSuffix } from '../wizard/wave-custom-id.js';
+import { appendFlowSuffix, stripFlowSuffix } from '../wizard/wave-custom-id.js';
 import { buildMessagePayload } from '../wizard/ui.js';
 import { setWaveCell, isGridComplete } from '../wizard/grid.js';
 import { loadPublishedDraft, savePublishedDraft } from '../db/tsushima-publish.js';
 import {
   buildTsushimaApiPayload,
+  CREDIT_TEXT_MAX,
+  DEFAULT_TSUSHIMA_CREDIT_TEXT,
   pushTsushimaToNightmare,
   summarizeNightmareApiFailure,
 } from '../api/nightmare-tsushima.js';
 import { GRID_PAGE_COUNT, SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
 
 const DISCORD_CONTENT_MAX = 2000;
+
+/**
+ * @param {import('discord.js').ModalSubmitInteraction} interaction
+ * @param {object} session
+ * @param {'en' | 'ru'} loc
+ */
+async function publishTsushimaAfterCredits(interaction, session, loc) {
+  const apiUrl = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_URL ?? '').trim();
+  const apiToken = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
+
+  await interaction.deferReply({ ephemeral: true });
+
+  if (!apiUrl || !apiToken) {
+    await interaction.editReply({
+      content: t(loc, 'api_not_configured').slice(0, DISCORD_CONTENT_MAX),
+    });
+    return;
+  }
+
+  /** @type {Record<string, unknown>} */
+  let payload;
+  try {
+    payload = buildTsushimaApiPayload(session.draft);
+  } catch (e) {
+    console.error('buildTsushimaApiPayload', e);
+    await interaction.editReply({ content: t(loc, 'api_payload_error') });
+    return;
+  }
+
+  try {
+    const result = await pushTsushimaToNightmare(payload, { url: apiUrl, token: apiToken });
+    if (!result.ok) {
+      console.error('pushTsushimaToNightmare', result.status, result.json);
+      const detail = summarizeNightmareApiFailure(result);
+      const msg = `${t(loc, 'api_publish_failed_prefix')}\n${detail}`.slice(0, DISCORD_CONTENT_MAX);
+      await interaction.editReply({ content: msg });
+      return;
+    }
+
+    try {
+      savePublishedDraft(session.game, session.draft);
+    } catch (e) {
+      console.error('savePublishedDraft after API ok', e);
+      await interaction.editReply({ content: t(loc, 'save_error') });
+      if (session.messageId && interaction.channel?.isTextBased()) {
+        try {
+          const m = await interaction.channel.messages.fetch(session.messageId);
+          await m.edit({ content: t(loc, 'save_error'), components: [], embeds: [] });
+        } catch {
+          /* ignore */
+        }
+      }
+      return;
+    }
+
+    deleteSession(interaction.user.id, session.sourceCommand);
+
+    const weekStart =
+      result.json &&
+      typeof result.json === 'object' &&
+      result.json !== null &&
+      'week_start' in result.json
+        ? String(/** @type {{ week_start?: string }} */ (result.json).week_start ?? '')
+        : '';
+    const weekLine = weekStart ? `\n${t(loc, 'api_week_line').replace('{week}', weekStart)}` : '';
+    const finalContent = `${t(loc, 'saved_success_api')}${weekLine}\n${t(loc, 'confirm_saved')}`.slice(
+      0,
+      DISCORD_CONTENT_MAX,
+    );
+
+    await interaction.editReply({ content: finalContent });
+
+    if (session.messageId && interaction.channel?.isTextBased()) {
+      try {
+        const m = await interaction.channel.messages.fetch(session.messageId);
+        await m.edit({
+          content: finalContent,
+          components: [],
+          embeds: [],
+        });
+      } catch (e) {
+        console.error('edit wizard after publish', e);
+      }
+    }
+  } catch (e) {
+    console.error('publishTsushimaAfterCredits', e);
+    await interaction.editReply({ content: t(loc, 'api_network_error') });
+  }
+}
 
 /**
  * @param {string} [prefix]
@@ -199,6 +296,29 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.messageId = msg.id;
     session.channelId = msg.channelId;
     saveSession(session);
+    return;
+  }
+
+  if (interaction.isModalSubmit()) {
+    const rawId = interaction.customId ?? '';
+    if (!rawId.startsWith('waves:credits_modal')) return;
+    const { id, flow } = stripFlowSuffix(rawId);
+    if (id !== 'waves:credits_modal') return;
+
+    const sessionModal = getSession(interaction.user.id, flow);
+    if (!sessionModal) {
+      await interaction.reply({
+        content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const locModal = /** @type {'en' | 'ru'} */ (sessionModal.locale ?? 'en');
+    const rawCredits = interaction.fields.getTextInputValue('credits') ?? '';
+    sessionModal.draft.credits = rawCredits.trim() || DEFAULT_TSUSHIMA_CREDIT_TEXT;
+    saveSession(sessionModal);
+    await publishTsushimaAfterCredits(interaction, sessionModal, locModal);
     return;
   }
 
@@ -420,7 +540,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   }
 
   if (id === 'waves:done') {
-    const loc = /** @type {'en' | 'ru'} */ (session.locale);
+    const loc = /** @type {'en' | 'ru'} */ (session.locale ?? 'en');
 
     if (!isGridComplete(session.draft)) {
       await interaction.deferUpdate();
@@ -451,74 +571,38 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       return;
     }
 
-    /** @type {Record<string, unknown>} */
-    let payload;
-    try {
-      payload = buildTsushimaApiPayload(session.draft);
-    } catch (e) {
-      console.error('buildTsushimaApiPayload', e);
-      await interaction.deferUpdate();
-      try {
-        await interaction.followUp({ content: t(loc, 'api_payload_error'), ephemeral: true });
-      } catch {
-        /* ignore */
-      }
-      return;
+    const title = t(loc, 'credits_modal_title').slice(0, 45);
+    const label = t(loc, 'credits_modal_label').slice(0, 45);
+    const placeholder = t(loc, 'credits_modal_placeholder').slice(0, 100);
+    const input = new TextInputBuilder()
+      .setCustomId('credits')
+      .setLabel(label)
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(false)
+      .setMaxLength(CREDIT_TEXT_MAX)
+      .setPlaceholder(placeholder);
+    const existing = String(session.draft.credits ?? '').trim();
+    if (existing) {
+      input.setValue(existing.slice(0, CREDIT_TEXT_MAX));
     }
 
+    const modal = new ModalBuilder()
+      .setCustomId(appendFlowSuffix('waves:credits_modal', session.sourceCommand))
+      .setTitle(title)
+      .addComponents(new ActionRowBuilder().addComponents(input));
+
     try {
-      const result = await pushTsushimaToNightmare(payload, { url: apiUrl, token: apiToken });
-      if (!result.ok) {
-        console.error('pushTsushimaToNightmare', result.status, result.json);
-        const detail = summarizeNightmareApiFailure(result);
-        const msg = `${t(loc, 'api_publish_failed_prefix')}\n${detail}`.slice(0, DISCORD_CONTENT_MAX);
-        await interaction.deferUpdate();
-        try {
-          await interaction.followUp({ content: msg, ephemeral: true });
-        } catch {
-          /* ignore */
-        }
-        return;
-      }
-
-      try {
-        savePublishedDraft(session.game, session.draft);
-      } catch (e) {
-        console.error('savePublishedDraft after API ok', e);
-        await interaction.deferUpdate();
-        await interaction.message.edit({
-          content: t(loc, 'save_error'),
-          components: [],
-          embeds: [],
-        });
-        return;
-      }
-
-      deleteSession(interaction.user.id, session.sourceCommand);
-      await interaction.deferUpdate();
-      const weekStart =
-        result.json &&
-        typeof result.json === 'object' &&
-        result.json !== null &&
-        'week_start' in result.json
-          ? String(/** @type {{ week_start?: string }} */ (result.json).week_start ?? '')
-          : '';
-      const weekLine = weekStart
-        ? `\n${t(loc, 'api_week_line').replace('{week}', weekStart)}`
-        : '';
-      await interaction.message.edit({
-        content: `${t(loc, 'saved_success_api')}${weekLine}\n${t(loc, 'confirm_saved')}`.slice(
-          0,
-          DISCORD_CONTENT_MAX,
-        ),
-        components: [],
-        embeds: [],
-      });
+      await interaction.showModal(modal);
     } catch (e) {
-      console.error('waves:done api', e);
-      await interaction.deferUpdate();
+      console.error('showModal credits', e);
       try {
-        await interaction.followUp({ content: t(loc, 'api_network_error'), ephemeral: true });
+        await interaction.followUp({
+          content:
+            loc === 'ru'
+              ? 'Не удалось открыть окно Credits. Попробуйте снова.'
+              : 'Could not open the Credits modal. Try again.',
+          ephemeral: true,
+        });
       } catch {
         /* ignore */
       }

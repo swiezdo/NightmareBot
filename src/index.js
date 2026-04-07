@@ -82,6 +82,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
       await handleSetupWavesInteraction(interaction, client);
       return;
     }
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('waves:credits_modal')) {
+      await handleSetupWavesInteraction(interaction, client);
+      return;
+    }
     if (interaction.isMessageComponent()) {
       if (
         interaction.customId?.startsWith('waves:') &&

@@ -56,13 +56,21 @@ export const strings = {
     bulk_err_missing_waves: 'Need 15 lines, waves 1–15, each with three slots.',
     bulk_err_bad_slots: 'Unknown labels (marked **bold** below). Fix and send the list again:',
     bulk_err_unknown: 'Could not parse the list.',
+    credits_modal_title: 'Credits',
+    credits_modal_label: 'Credits (thanks / attribution)',
+    credits_modal_placeholder: 'Optional — leave empty for the default line.',
     waves_read_401:
       'Nightmare Club returned **401**: check **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** in `.env` (must match `BOT_API_TOKEN_TSUSHIMA` on the site).',
     waves_read_http: 'Failed to load Tsushima rotation: HTTP **{status}**.',
     waves_read_timeout: 'Nightmare Club API timed out. Try again later.',
     waves_read_network: 'Network error while loading Tsushima rotation. Try again later.',
-    waves_yotei_not_ready:
-      '**Ghost of Yōtei** is not supported in `/waves` yet. Only **Ghost of Tsushima** works for now.',
+    waves_yotei_api_not_configured:
+      'Yōtei read API is not configured. Set **NIGHTMARE_CLUB_YOTEI_TOKEN** in `.env` (same token as **`BOT_API_TOKEN_YOTEI`** on Nightmare Club). Optional: **NIGHTMARE_CLUB_YOTEI_URL** / **NIGHTMARE_CLUB_YOTEI_READ_URL**.',
+    waves_yotei_read_401:
+      'Nightmare Club **401** on Yōtei: check **NIGHTMARE_CLUB_YOTEI_TOKEN** (must match `BOT_API_TOKEN_YOTEI` on the site).',
+    waves_yotei_read_http: 'Failed to load Yōtei rotation: HTTP **{status}**.',
+    waves_yotei_read_timeout: 'Yōtei API request timed out. Try again later.',
+    waves_yotei_read_network: 'Network error while loading Yōtei rotation. Try again later.',
   },
   ru: {
     choose_language_line: 'Choose your language / Выбери свой язык',
@@ -119,13 +127,21 @@ export const strings = {
     bulk_err_missing_waves: 'Нужно 15 строк с номерами волн 1–15, в каждой три ячейки.',
     bulk_err_bad_slots: 'Неизвестные подписи (**жирным**). Исправьте и пришлите список снова:',
     bulk_err_unknown: 'Не удалось разобрать список.',
+    credits_modal_title: 'Благодарности (Credits)',
+    credits_modal_label: 'Текст благодарностей / атрибуция',
+    credits_modal_placeholder: 'Необязательно — пусто будет подставлен стандартный текст.',
     waves_read_401:
       'Nightmare Club вернул **401**: проверьте **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** в `.env` (должен совпадать с `BOT_API_TOKEN_TSUSHIMA` на сайте).',
     waves_read_http: 'Не удалось загрузить ротацию Tsushima: HTTP **{status}**.',
     waves_read_timeout: 'Превышено время ожидания API Nightmare Club. Попробуйте позже.',
     waves_read_network: 'Сетевая ошибка при загрузке ротации Tsushima. Попробуйте позже.',
-    waves_yotei_not_ready:
-      '**Ghost of Yōtei** в `/waves` пока не настроен. Пока работает только **Ghost of Tsushima**.',
+    waves_yotei_api_not_configured:
+      'Не задан токен для чтения Yōtei. Укажите **NIGHTMARE_CLUB_YOTEI_TOKEN** в `.env` (тот же секрет, что **`BOT_API_TOKEN_YOTEI`** на Nightmare Club). При необходимости: **NIGHTMARE_CLUB_YOTEI_URL** / **NIGHTMARE_CLUB_YOTEI_READ_URL**.',
+    waves_yotei_read_401:
+      'Nightmare Club вернул **401** для Yōtei: проверьте **NIGHTMARE_CLUB_YOTEI_TOKEN** (должен совпадать с `BOT_API_TOKEN_YOTEI` на сайте).',
+    waves_yotei_read_http: 'Не удалось загрузить ротацию Yōtei: HTTP **{status}**.',
+    waves_yotei_read_timeout: 'Превышено время ожидания API Yōtei. Попробуйте позже.',
+    waves_yotei_read_network: 'Сетевая ошибка при загрузке ротации Yōtei. Попробуйте позже.',
   },
 };
 
