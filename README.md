@@ -1,6 +1,8 @@
 # waves-bot
 
-Discord DM wizard: build and edit Tsushima waves via `/setup-waves` and `/edit-waves` (same `game` option, DM only). When the grid is complete and the user presses **Done**, the bot sends a minimal JSON body to **Nightmare Club** (`PUT /api/rotations/tsushima`) using `NIGHTMARE_CLUB_TSUSHIMA_URL` and `NIGHTMARE_CLUB_TSUSHIMA_TOKEN` (the token must match `BOT_API_TOKEN_TSUSHIMA` on the site). Only after a successful API response does the bot write the same draft to **SQLite** (`waves_tsushima_publish`). If those env vars are missing, nothing is saved and the user sees a configuration hint.
+Discord DM wizard: build and edit Tsushima waves via `/setup-waves` and `/edit-waves` (same `game` option, DM only). Command **`/waves`** (same allowlist and DM-only rules) takes options **`game`** (Tsushima / Yōtei) and **`lang`** (English / Русский). **Tsushima** calls **Nightmare Club** read-only **`GET /api/rotation/tsushima`** with `Authorization: Bearer` and the same **`NIGHTMARE_CLUB_TSUSHIMA_TOKEN`** as for publish; **Yōtei** replies that the command is not wired yet. Optional **`NIGHTMARE_CLUB_TSUSHIMA_READ_URL`** overrides the GET URL (otherwise derived from `NIGHTMARE_CLUB_TSUSHIMA_URL` or defaults to `https://nightmare.club/api/rotation/tsushima`). Map names, modifiers, and bonus objectives use local **`json/rotation_tsushima_*.json`** keyed by `week_code`; keep them in sync with the site.
+
+When the grid is complete and the user presses **Done**, the bot sends a minimal JSON body to **Nightmare Club** (`PUT /api/rotations/tsushima`) using `NIGHTMARE_CLUB_TSUSHIMA_URL` and `NIGHTMARE_CLUB_TSUSHIMA_TOKEN` (the token must match `BOT_API_TOKEN_TSUSHIMA` on the site). Only after a successful API response does the bot write the same draft to **SQLite** (`waves_tsushima_publish`). If those env vars are missing, nothing is saved and the user sees a configuration hint.
 
 ## Requirements
 
@@ -50,6 +52,8 @@ The bot process and sqlite-web both open the same SQLite file; avoid heavy write
 | `src/db/database.js` | SQLite init + legacy JSON migration |
 | `src/db/session.js` | Session load/save/delete |
 | `src/db/tsushima-publish.js` | Published Tsushima draft (`waves_tsushima_publish`) |
-| `src/api/nightmare-tsushima.js` | Build payload + `PUT` to Nightmare Club Tsushima endpoint |
+| `src/api/nightmare-tsushima.js` | Build payload + `PUT` to Nightmare Club; `GET` URL helper + fetch for `/waves` |
+| `src/utils/tsushima-waves-format.js` | Format API `maps` + local rotation JSON into Discord message chunks |
+| `src/handlers/waves-command.js` | Slash `/waves` (DM, allowlist) |
 | `json/rotation_tsushima_*.json` | Rotation source data |
 | `waves/tsushima.json` | Legacy only: imported once into DB then renamed to `.migrated` |

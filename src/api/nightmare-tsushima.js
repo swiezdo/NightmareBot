@@ -74,6 +74,53 @@ export async function pushTsushimaToNightmare(payload, { url, token }) {
   return { ok: res.ok && bodyOk, status: res.status, json };
 }
 
+const DEFAULT_TSUSHIMA_READ_URL = 'https://nightmare.club/api/rotation/tsushima';
+
+/**
+ * URL для GET текущей ротации (read-only). Переопределение: NIGHTMARE_CLUB_TSUSHIMA_READ_URL;
+ * иначе из NIGHTMARE_CLUB_TSUSHIMA_URL: …/api/rotations/tsushima → …/api/rotation/tsushima.
+ */
+export function getTsushimaRotationReadUrl() {
+  const explicit = process.env.NIGHTMARE_CLUB_TSUSHIMA_READ_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, '');
+  const putUrl = process.env.NIGHTMARE_CLUB_TSUSHIMA_URL?.trim();
+  if (putUrl) {
+    const derived = putUrl.replace(/\/api\/rotations\/tsushima\/?$/i, '/api/rotation/tsushima');
+    if (derived !== putUrl) return derived.replace(/\/$/, '');
+  }
+  return DEFAULT_TSUSHIMA_READ_URL;
+}
+
+/**
+ * @param {{ url?: string, token: string, timeoutMs?: number }} opts
+ * @returns {Promise<{ ok: boolean, status: number, data: unknown }>}
+ */
+export async function fetchTsushimaRotationRead(opts) {
+  const url = (opts.url ?? getTsushimaRotationReadUrl()).replace(/\/$/, '');
+  const token = String(opts.token ?? '').trim();
+  const timeoutMs = opts.timeoutMs ?? 15_000;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    signal: AbortSignal.timeout(timeoutMs),
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const text = await res.text();
+  /** @type {unknown} */
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+
+  return { ok: res.ok, status: res.status, data };
+}
+
 /**
  * Short user-facing detail for follow-up message (truncated).
  *

@@ -56,6 +56,13 @@ export const strings = {
     bulk_err_missing_waves: 'Need 15 lines, waves 1–15, each with three slots.',
     bulk_err_bad_slots: 'Unknown labels (marked **bold** below). Fix and send the list again:',
     bulk_err_unknown: 'Could not parse the list.',
+    waves_read_401:
+      'Nightmare Club returned **401**: check **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** in `.env` (must match `BOT_API_TOKEN_TSUSHIMA` on the site).',
+    waves_read_http: 'Failed to load Tsushima rotation: HTTP **{status}**.',
+    waves_read_timeout: 'Nightmare Club API timed out. Try again later.',
+    waves_read_network: 'Network error while loading Tsushima rotation. Try again later.',
+    waves_yotei_not_ready:
+      '**Ghost of Yōtei** is not supported in `/waves` yet. Only **Ghost of Tsushima** works for now.',
   },
   ru: {
     choose_language_line: 'Choose your language / Выбери свой язык',
@@ -112,6 +119,13 @@ export const strings = {
     bulk_err_missing_waves: 'Нужно 15 строк с номерами волн 1–15, в каждой три ячейки.',
     bulk_err_bad_slots: 'Неизвестные подписи (**жирным**). Исправьте и пришлите список снова:',
     bulk_err_unknown: 'Не удалось разобрать список.',
+    waves_read_401:
+      'Nightmare Club вернул **401**: проверьте **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** в `.env` (должен совпадать с `BOT_API_TOKEN_TSUSHIMA` на сайте).',
+    waves_read_http: 'Не удалось загрузить ротацию Tsushima: HTTP **{status}**.',
+    waves_read_timeout: 'Превышено время ожидания API Nightmare Club. Попробуйте позже.',
+    waves_read_network: 'Сетевая ошибка при загрузке ротации Tsushima. Попробуйте позже.',
+    waves_yotei_not_ready:
+      '**Ghost of Yōtei** в `/waves` пока не настроен. Пока работает только **Ghost of Tsushima**.',
   },
 };
 

@@ -32,6 +32,24 @@ const commands = [
       .setName('edit-waves')
       .setDescription('Редактировать сохранённые волны Tsushima из базы бота (ЛС)'),
   ).toJSON(),
+  gameOption(
+    new SlashCommandBuilder()
+      .setName('waves')
+      .setDescription(
+        'Текущая ротация волн с nightmare.club (ЛС, allowlist). Tsushima — готово; Yōtei — пока нет.',
+      ),
+  )
+    .addStringOption((option) =>
+      option
+        .setName('lang')
+        .setDescription('Язык вывода / Output language')
+        .setRequired(true)
+        .addChoices(
+          { name: 'English', value: 'en' },
+          { name: 'Русский', value: 'ru' },
+        ),
+    )
+    .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);

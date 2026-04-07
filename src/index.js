@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { handleSetupWavesInteraction, parseAllowedUserIds } from './handlers/setup-waves.js';
+import { handleWavesCommand } from './handlers/waves-command.js';
 import { handleBulkWavesDmMessage } from './handlers/bulk-waves-message.js';
 import { initDatabase } from './db/database.js';
 
@@ -70,6 +71,10 @@ client.on(Events.MessageCreate, async (message) => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
+    if (interaction.isChatInputCommand() && interaction.commandName === 'waves') {
+      await handleWavesCommand(interaction, allowed);
+      return;
+    }
     if (
       interaction.isChatInputCommand() &&
       (interaction.commandName === 'setup-waves' || interaction.commandName === 'edit-waves')
