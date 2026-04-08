@@ -17,7 +17,9 @@ const debugWs = process.env.WAVES_BOT_DEBUG === '1' || process.env.WAVES_BOT_DEB
 
 const allowed = parseAllowedUserIds(process.env.SETUP_WAVES_ALLOWED_USER_IDS);
 if (allowed.size === 0) {
-  console.warn('SETUP_WAVES_ALLOWED_USER_IDS пуст — команду никто не вызовет.');
+  console.warn(
+    'SETUP_WAVES_ALLOWED_USER_IDS пуст — /setup-waves и /edit-waves никто не вызовет (/waves доступен всем).',
+  );
 }
 
 const client = new Client({
@@ -72,7 +74,7 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
     if (interaction.isChatInputCommand() && interaction.commandName === 'waves') {
-      await handleWavesCommand(interaction, allowed);
+      await handleWavesCommand(interaction);
       return;
     }
     if (
@@ -98,7 +100,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     console.error('InteractionCreate', err);
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
       try {
-        await interaction.reply({ content: 'Ошибка. Смотрите логи.' });
+        await interaction.reply({
+          content: 'Ошибка. Смотрите логи.',
+          ephemeral: interaction.inGuild(),
+        });
       } catch {
         /* ignore */
       }

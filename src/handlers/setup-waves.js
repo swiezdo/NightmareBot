@@ -197,14 +197,12 @@ export function parseAllowedUserIds(raw) {
 
 /**
  * @param {import('discord.js').Interaction} interaction
- * @param {Set<string>} allowed
  */
-async function ensureDm(interaction, allowed) {
+async function ensureDm(interaction) {
   const ch = interaction.channel;
   if (ch && ch.type === ChannelType.DM) return true;
-  const loc = allowed.has(interaction.user.id) ? 'ru' : 'en';
   if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-    await interaction.reply({ content: t(loc, 'dm_only') });
+    await interaction.reply({ content: t('en', 'dm_only'), ephemeral: true });
   }
   return false;
 }
@@ -241,12 +239,15 @@ export async function handleSetupWavesInteraction(interaction, _client) {
 
   if (!allowed.has(interaction.user.id)) {
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: t('ru', 'forbidden') });
+      await interaction.reply({
+        content: t('ru', 'forbidden'),
+        ephemeral: interaction.inGuild(),
+      });
     }
     return;
   }
 
-  if (!(await ensureDm(interaction, allowed))) return;
+  if (!(await ensureDm(interaction))) return;
 
   const rotations = loadRotations();
 

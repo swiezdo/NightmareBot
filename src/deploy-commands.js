@@ -1,16 +1,14 @@
 import 'dotenv/config';
 import { REST, Routes, SlashCommandBuilder, ApplicationIntegrationType } from 'discord.js';
 
-/** Мастер: только user install (ЛС / «приложение на аккаунт»), не спамим список слэшей на серверах. */
-const USER_INSTALL_ONLY = [ApplicationIntegrationType.UserInstall];
-/** /waves: только гильдии (каналы сервера). */
+/** Guild-scoped slash commands; setup/edit are meant for DMs (ephemeral hint if used on a server). */
 const GUILD_INSTALL_ONLY = [ApplicationIntegrationType.GuildInstall];
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
 
 if (!token || !clientId) {
-  console.error('Нужны DISCORD_TOKEN и CLIENT_ID в .env');
+  console.error('Need DISCORD_TOKEN and CLIENT_ID in .env');
   process.exit(1);
 }
 
@@ -18,7 +16,7 @@ const gameOption = (builder) =>
   builder.addStringOption((option) =>
     option
       .setName('game')
-      .setDescription('Игра')
+      .setDescription('Game')
       .setRequired(true)
       .addChoices(
         { name: 'Ghost of Tsushima', value: 'tsushima' },
@@ -30,31 +28,31 @@ const commands = [
   gameOption(
     new SlashCommandBuilder()
       .setName('setup-waves')
-      .setDescription('Мастер настройки волн (только в личных сообщениях)')
-      .setIntegrationTypes(...USER_INSTALL_ONLY),
+      .setDescription('Waves setup wizard. Use in DMs only.')
+      .setIntegrationTypes(...GUILD_INSTALL_ONLY),
   ).toJSON(),
   gameOption(
     new SlashCommandBuilder()
       .setName('edit-waves')
-      .setDescription('Редактировать сохранённые волны Tsushima из базы бота (ЛС)')
-      .setIntegrationTypes(...USER_INSTALL_ONLY),
+      .setDescription('Edit current waves from Nightmare.Club. DMs only.')
+      .setIntegrationTypes(...GUILD_INSTALL_ONLY),
   ).toJSON(),
   gameOption(
     new SlashCommandBuilder()
       .setName('waves')
       .setDescription(
-        'Ротация волн nightmare.club (Tsushima/Yōtei). Канал сервера, allowlist, язык en/ru.',
+        'Nightmare.Club wave rotation (Tsushima/Yōtei). Guild or DM; choose English or Russian output.',
       )
       .setIntegrationTypes(...GUILD_INSTALL_ONLY),
   )
     .addStringOption((option) =>
       option
         .setName('lang')
-        .setDescription('Язык вывода / Output language')
+        .setDescription('Output language for the rotation text')
         .setRequired(true)
         .addChoices(
           { name: 'English', value: 'en' },
-          { name: 'Русский', value: 'ru' },
+          { name: 'Russian', value: 'ru' },
         ),
     )
     .toJSON(),
@@ -63,4 +61,4 @@ const commands = [
 const rest = new REST({ version: '10' }).setToken(token);
 
 await rest.put(Routes.applicationCommands(clientId), { body: commands });
-console.log('Глобальные команды зарегистрированы.');
+console.log('Global application commands registered.');

@@ -6,17 +6,16 @@ import { formatTsushimaRotationChunks } from '../utils/tsushima-waves-format.js'
 import { formatYoteiRotationChunks } from '../utils/yotei-waves-format.js';
 
 /**
- * /waves под Guild Install — текстовые каналы гильдии; ЛС допускаем, если клиент отдаст команду.
+ * /waves в ЛС или в текстовом канале гильдии; прочие контексты — эфемерное предупреждение (текст на англ.).
  * @param {import('discord.js').ChatInputCommandInteraction} interaction
- * @param {'en' | 'ru'} loc
  */
-async function ensureWavesChannel(interaction, loc) {
+async function ensureWavesChannel(interaction) {
   const ch = interaction.channel;
   if (!ch) return false;
   if (ch.type === ChannelType.DM) return true;
   if (interaction.inGuild() && ch.isTextBased()) return true;
   if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-    await interaction.reply({ content: t(loc, 'waves_wrong_channel') });
+    await interaction.reply({ content: t('en', 'waves_wrong_channel'), ephemeral: true });
   }
   return false;
 }
@@ -50,20 +49,12 @@ async function replyWithChunks(interaction, chunks) {
 
 /**
  * @param {import('discord.js').ChatInputCommandInteraction} interaction
- * @param {Set<string>} allowed
  */
-export async function handleWavesCommand(interaction, allowed) {
+export async function handleWavesCommand(interaction) {
   const lang = wavesLang(interaction);
   const game = interaction.options.getString('game', true);
 
-  if (!allowed.has(interaction.user.id)) {
-    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: t(lang, 'forbidden') });
-    }
-    return;
-  }
-
-  if (!(await ensureWavesChannel(interaction, lang))) return;
+  if (!(await ensureWavesChannel(interaction))) return;
 
   if (game === 'yotei') {
     const token = process.env.NIGHTMARE_CLUB_YOTEI_TOKEN?.trim();
