@@ -27,6 +27,8 @@ export const strings = {
     all_filled_hint: 'All wave slots are filled. Press **Done** to save.',
     confirm_saved: 'You can run `/setup-waves` or `/edit-waves` again.',
     session_stale: 'Session expired or missing. Run `/setup-waves` or `/edit-waves` again.',
+    session_expired_idle:
+      'Session expired (no activity for one hour). Run `/setup-waves` or `/edit-waves` to open a new panel.',
     wizard_message_deleted:
       'The wizard message was deleted or is no longer available. Run `/setup-waves` or `/edit-waves` again to open a new panel.',
     grid_page: 'Page {cur}/{tot}',
@@ -77,6 +79,7 @@ export const strings = {
     waves_yotei_read_http: 'Failed to load Yōtei rotation: HTTP **{status}**.',
     waves_yotei_read_timeout: 'Yōtei API request timed out. Try again later.',
     waves_yotei_read_network: 'Network error while loading Yōtei rotation. Try again later.',
+    waves_wrong_channel: 'Use `/waves` in a server text channel (or in DMs with the bot if available).',
   },
   ru: {
     choose_language_line: 'Choose your language / Выбери свой язык',
@@ -105,6 +108,8 @@ export const strings = {
     all_filled_hint: 'Все ячейки заполнены. Нажмите **Готово**, чтобы сохранить.',
     confirm_saved: 'Можно снова вызвать `/setup-waves` или `/edit-waves`.',
     session_stale: 'Сессия сброшена или устарела. Запустите `/setup-waves` или `/edit-waves`.',
+    session_expired_idle:
+      'Сессия истекла (час без активности). Запустите `/setup-waves` или `/edit-waves`, чтобы открыть новую панель.',
     wizard_message_deleted:
       'Сообщение мастера удалено или недоступно. Запустите `/setup-waves` или `/edit-waves`, чтобы открыть новую панель.',
     grid_page: 'Страница {cur}/{tot}',
@@ -155,6 +160,8 @@ export const strings = {
     waves_yotei_read_http: 'Не удалось загрузить ротацию Yōtei: HTTP **{status}**.',
     waves_yotei_read_timeout: 'Превышено время ожидания API Yōtei. Попробуйте позже.',
     waves_yotei_read_network: 'Сетевая ошибка при загрузке ротации Yōtei. Попробуйте позже.',
+    waves_wrong_channel:
+      'Вызывайте `/waves` в текстовом канале сервера (или в ЛС с ботом, если команда там доступна).',
   },
 };
 

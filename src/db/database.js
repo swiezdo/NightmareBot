@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { DATA_DIR, DB_PATH } from '../paths.js';
+import { SESSION_TTL_MS } from './session-ttl.js';
 
 /** @type {import('better-sqlite3').default | null} */
 let db = null;
@@ -71,6 +72,14 @@ export function initDatabase() {
 
   migrateLegacySessionsJson();
   migrateSessionKeysToScoped();
+
+  const staleBefore = Date.now() - SESSION_TTL_MS;
+  const expired = db
+    .prepare(`DELETE FROM setup_waves_sessions WHERE updated_at < ?`)
+    .run(staleBefore);
+  if (expired.changes > 0) {
+    console.log('[db] Removed expired setup_waves_sessions rows:', expired.changes);
+  }
 }
 
 /** Legacy rows used Discord user_id only; scope to setup-waves so edit-waves can have its own row. */

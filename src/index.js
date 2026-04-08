@@ -98,7 +98,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     console.error('InteractionCreate', err);
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
       try {
-        await interaction.reply({ content: 'Ошибка. Смотрите логи.', ephemeral: true });
+        await interaction.reply({ content: 'Ошибка. Смотрите логи.' });
       } catch {
         /* ignore */
       }

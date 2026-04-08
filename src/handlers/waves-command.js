@@ -6,14 +6,17 @@ import { formatTsushimaRotationChunks } from '../utils/tsushima-waves-format.js'
 import { formatYoteiRotationChunks } from '../utils/yotei-waves-format.js';
 
 /**
- * @param {import('discord.js').BaseInteraction} interaction
+ * /waves под Guild Install — текстовые каналы гильдии; ЛС допускаем, если клиент отдаст команду.
+ * @param {import('discord.js').ChatInputCommandInteraction} interaction
  * @param {'en' | 'ru'} loc
  */
-async function ensureDmOnly(interaction, loc) {
+async function ensureWavesChannel(interaction, loc) {
   const ch = interaction.channel;
-  if (ch && ch.type === ChannelType.DM) return true;
+  if (!ch) return false;
+  if (ch.type === ChannelType.DM) return true;
+  if (interaction.inGuild() && ch.isTextBased()) return true;
   if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-    await interaction.reply({ content: t(loc, 'dm_only'), ephemeral: true });
+    await interaction.reply({ content: t(loc, 'waves_wrong_channel') });
   }
   return false;
 }
@@ -40,7 +43,6 @@ async function replyWithChunks(interaction, chunks) {
   for (const part of rest) {
     await interaction.followUp({
       content: part,
-      ephemeral: true,
       allowedMentions: { parse: [] },
     });
   }
@@ -56,21 +58,21 @@ export async function handleWavesCommand(interaction, allowed) {
 
   if (!allowed.has(interaction.user.id)) {
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: t(lang, 'forbidden'), ephemeral: true });
+      await interaction.reply({ content: t(lang, 'forbidden') });
     }
     return;
   }
 
-  if (!(await ensureDmOnly(interaction, lang))) return;
+  if (!(await ensureWavesChannel(interaction, lang))) return;
 
   if (game === 'yotei') {
     const token = process.env.NIGHTMARE_CLUB_YOTEI_TOKEN?.trim();
     if (!token) {
-      await interaction.reply({ content: t(lang, 'waves_yotei_api_not_configured'), ephemeral: true });
+      await interaction.reply({ content: t(lang, 'waves_yotei_api_not_configured') });
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     try {
       const { ok, status, data } = await fetchYoteiRotationRead({ token });
@@ -101,11 +103,11 @@ export async function handleWavesCommand(interaction, allowed) {
 
   const token = process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN?.trim();
   if (!token) {
-    await interaction.reply({ content: t(lang, 'api_not_configured'), ephemeral: true });
+    await interaction.reply({ content: t(lang, 'api_not_configured') });
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   try {
     const { ok, status, data } = await fetchTsushimaRotationRead({ token });

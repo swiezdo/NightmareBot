@@ -1,6 +1,7 @@
 import {
   ActionRowBuilder,
   ChannelType,
+  MessageFlags,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -13,7 +14,8 @@ import {
   buildDraftFromWeek,
   createEmptyDraft,
 } from '../data/rotation.js';
-import { getSession, saveSession, deleteSession } from '../db/session.js';
+import { loadSession, saveSession, deleteSession } from '../db/session.js';
+import { editExpiredWizardMessageFromInteraction } from '../utils/session-expired-wizard.js';
 import { appendFlowSuffix, stripFlowSuffix } from '../wizard/wave-custom-id.js';
 import { buildMessagePayload } from '../wizard/ui.js';
 import { setWaveCell, isGridComplete } from '../wizard/grid.js';
@@ -39,7 +41,7 @@ async function publishTsushimaAfterCredits(interaction, session, loc) {
   const apiUrl = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_URL ?? '').trim();
   const apiToken = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   if (!apiUrl || !apiToken) {
     await interaction.editReply({
@@ -85,16 +87,31 @@ async function publishTsushimaAfterCredits(interaction, session, loc) {
 
     await interaction.editReply({ content: finalContent });
 
-    if (session.messageId && interaction.channel?.isTextBased()) {
+    const wizardEditPayload = {
+      content: finalContent,
+      components: [],
+      embeds: [],
+    };
+
+    /** @type {import('discord.js').Message | null} */
+    let wizardMsg = null;
+    if (interaction.isFromMessage()) {
+      wizardMsg = interaction.message;
+    } else if (session.messageId && interaction.channel?.isTextBased()) {
       try {
-        const m = await interaction.channel.messages.fetch(session.messageId);
-        await m.edit({
-          content: finalContent,
-          components: [],
-          embeds: [],
-        });
+        wizardMsg = await interaction.channel.messages.fetch(session.messageId);
+      } catch {
+        wizardMsg = null;
+      }
+    }
+
+    if (wizardMsg && !wizardMsg.flags.has(MessageFlags.Ephemeral)) {
+      try {
+        await wizardMsg.edit(wizardEditPayload);
       } catch (e) {
-        console.error('edit wizard after publish', e);
+        if (!isDiscordUnknownMessage(e)) {
+          console.error('edit wizard after publish', e);
+        }
       }
     }
   } catch (e) {
@@ -132,8 +149,8 @@ function isDiscordUnknownMessage(e) {
 }
 
 /**
- * After deferUpdate: update the wizard message, or recover if it was deleted (Discord 10008).
- * Uses interaction.editReply — required for ephemeral slash replies (/edit-waves); message.edit() hits the channel endpoint and returns 10008 for those.
+ * After deferUpdate: обновить сообщение мастера через interaction.editReply (тот же webhook, что и у slash/кнопки).
+ * При удалении сообщения (10008) — сбрасываем session.messageId и шлём followUp с подсказкой.
  *
  * @param {import('discord.js').MessageComponentInteraction} interaction
  * @param {object} session
@@ -151,7 +168,6 @@ async function editWizardMessageOrRecover(interaction, session, payload) {
     try {
       await interaction.followUp({
         content: t(loc, 'wizard_message_deleted').slice(0, DISCORD_CONTENT_MAX),
-        ephemeral: true,
       });
     } catch {
       /* ignore */
@@ -188,7 +204,7 @@ async function ensureDm(interaction, allowed) {
   if (ch && ch.type === ChannelType.DM) return true;
   const loc = allowed.has(interaction.user.id) ? 'ru' : 'en';
   if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-    await interaction.reply({ content: t(loc, 'dm_only'), ephemeral: true });
+    await interaction.reply({ content: t(loc, 'dm_only') });
   }
   return false;
 }
@@ -225,7 +241,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
 
   if (!allowed.has(interaction.user.id)) {
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: t('ru', 'forbidden'), ephemeral: true });
+      await interaction.reply({ content: t('ru', 'forbidden') });
     }
     return;
   }
@@ -237,11 +253,15 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-waves') {
     const game = interaction.options.getString('game', true);
     if (game !== 'tsushima') {
-      await interaction.reply({ content: t('en', 'game_not_available'), ephemeral: true });
+      await interaction.reply({ content: t('en', 'game_not_available') });
       return;
     }
 
-    const prev = getSession(interaction.user.id, 'setup-waves');
+    const prevLoad = loadSession(interaction.user.id, 'setup-waves');
+    if (prevLoad.status === 'expired') {
+      await editExpiredWizardMessageFromInteraction(interaction, prevLoad);
+    }
+    const prev = prevLoad.status === 'ok' ? prevLoad.session : null;
     const session = newSession(interaction.user.id, game, { sourceCommand: 'setup-waves' });
     if (prev?.messageId && prev?.channelId) {
       session.messageId = prev.messageId;
@@ -257,7 +277,6 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         saveSession(session);
         await interaction.reply({
           content: `${t('ru', 'setup_reset')} · ${t('en', 'setup_reset')}`,
-          ephemeral: true,
         });
         return;
       } catch {
@@ -276,12 +295,12 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   if (interaction.isChatInputCommand() && interaction.commandName === 'edit-waves') {
     const game = interaction.options.getString('game', true);
     if (game !== 'tsushima') {
-      await interaction.reply({ content: t('en', 'game_not_available'), ephemeral: true });
+      await interaction.reply({ content: t('en', 'game_not_available') });
       return;
     }
 
     const loc = allowed.has(interaction.user.id) ? 'ru' : 'en';
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     const token = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
     if (!token) {
@@ -325,7 +344,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       return;
     }
 
-    const prev = getSession(interaction.user.id, 'edit-waves');
+    const prevLoad = loadSession(interaction.user.id, 'edit-waves');
+    if (prevLoad.status === 'expired') {
+      await editExpiredWizardMessageFromInteraction(interaction, prevLoad);
+    }
+    const prev = prevLoad.status === 'ok' ? prevLoad.session : null;
     const session = newSession(interaction.user.id, game, {
       sourceCommand: 'edit-waves',
       draft: built.draft,
@@ -359,7 +382,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     session.channelId = msg.channelId;
     saveSession(session);
     if (built.multiMap) {
-      await interaction.followUp({ content: t(loc, 'edit_tsushima_multi_map_note'), ephemeral: true });
+      await interaction.followUp({ content: t(loc, 'edit_tsushima_multi_map_note') });
     }
     return;
   }
@@ -370,14 +393,21 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     const { id, flow } = stripFlowSuffix(rawId);
     if (id !== 'waves:credits_modal') return;
 
-    const sessionModal = getSession(interaction.user.id, flow);
-    if (!sessionModal) {
+    const loadedModal = loadSession(interaction.user.id, flow);
+    if (loadedModal.status === 'expired') {
+      await editExpiredWizardMessageFromInteraction(interaction, loadedModal);
       await interaction.reply({
         content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
-        ephemeral: true,
       });
       return;
     }
+    if (loadedModal.status !== 'ok') {
+      await interaction.reply({
+        content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
+      });
+      return;
+    }
+    const sessionModal = loadedModal.session;
 
     const locModal = /** @type {'en' | 'ru'} */ (sessionModal.locale ?? 'en');
     const rawCredits = interaction.fields.getTextInputValue('credits') ?? '';
@@ -390,11 +420,18 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   if (!interaction.isMessageComponent()) return;
 
   const { id, flow } = stripFlowSuffix(interaction.customId);
-  let session = getSession(interaction.user.id, flow);
+  const loaded = loadSession(interaction.user.id, flow);
+  if (loaded.status === 'expired') {
+    await editExpiredWizardMessageFromInteraction(interaction, loaded);
+    await interaction.reply({
+      content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
+    });
+    return;
+  }
+  let session = loaded.status === 'ok' ? loaded.session : null;
   if (!session) {
     await interaction.reply({
       content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
-      ephemeral: true,
     });
     return;
   }
@@ -508,7 +545,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       const loc = /** @type {'en' | 'ru'} */ (session.locale);
       await interaction.deferUpdate();
       try {
-        await interaction.followUp({ content: t(loc, 'invalid_wave_slot'), ephemeral: true });
+        await interaction.followUp({ content: t(loc, 'invalid_wave_slot') });
       } catch {
         /* ignore */
       }
@@ -676,7 +713,6 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       try {
         await interaction.followUp({
           content: t(loc, 'grid_incomplete').slice(0, DISCORD_CONTENT_MAX),
-          ephemeral: true,
         });
       } catch {
         /* ignore */
@@ -692,7 +728,6 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       try {
         await interaction.followUp({
           content: t(loc, 'api_not_configured').slice(0, DISCORD_CONTENT_MAX),
-          ephemeral: true,
         });
       } catch {
         /* ignore */
@@ -730,7 +765,6 @@ export async function handleSetupWavesInteraction(interaction, _client) {
             loc === 'ru'
               ? 'Не удалось открыть окно Credits. Попробуйте снова.'
               : 'Could not open the Credits modal. Try again.',
-          ephemeral: true,
         });
       } catch {
         /* ignore */

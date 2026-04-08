@@ -1,4 +1,5 @@
 import { getDb } from './database.js';
+import { SESSION_TTL_MS } from './session-ttl.js';
 import { GRID_PAGE_COUNT } from '../wizard/constants.js';
 
 /** @param {string} userId @param {string} [sourceCommand] */
@@ -34,24 +35,59 @@ function normalizeRow(row) {
 }
 
 /**
+ * @typedef {{ status: 'ok', session: object } | { status: 'missing' } | { status: 'expired', messageId: string | null, channelId: string | null, locale: 'en' | 'ru' }} SessionLoadResult
+ */
+
+/**
+ * Загрузка сессии; при истечении TTL строка удаляется, возвращается `status: 'expired'` с данными для правки сообщения в Discord.
+ *
+ * @param {string} userId
+ * @param {'setup-waves' | 'edit-waves'} [sourceCommand]
+ * @returns {SessionLoadResult}
+ */
+export function loadSession(userId, sourceCommand = 'setup-waves') {
+  const db = getDb();
+  const key = sessionRowKey(userId, sourceCommand);
+  const found = db
+    .prepare(
+      `SELECT payload, updated_at FROM setup_waves_sessions WHERE user_id = ?`,
+    )
+    .get(key);
+  if (!found) return { status: 'missing' };
+  const { payload, updated_at } = /** @type {{ payload: string, updated_at: number }} */ (found);
+  if (Date.now() - updated_at >= SESSION_TTL_MS) {
+    /** @type {{ messageId: string | null, channelId: string | null, locale: 'en' | 'ru' }} */
+    let expired = { messageId: null, channelId: null, locale: 'en' };
+    try {
+      const row = JSON.parse(payload);
+      const n = normalizeRow(row);
+      expired = {
+        messageId: n.messageId ?? null,
+        channelId: n.channelId ?? null,
+        locale: n.locale === 'ru' ? 'ru' : 'en',
+      };
+    } catch {
+      /* ignore */
+    }
+    db.prepare(`DELETE FROM setup_waves_sessions WHERE user_id = ?`).run(key);
+    return { status: 'expired', ...expired };
+  }
+  try {
+    const row = JSON.parse(payload);
+    return { status: 'ok', session: normalizeRow(row) };
+  } catch {
+    return { status: 'missing' };
+  }
+}
+
+/**
  * @param {string} userId
  * @param {'setup-waves' | 'edit-waves'} [sourceCommand]
  * @returns {object | null}
  */
 export function getSession(userId, sourceCommand = 'setup-waves') {
-  const db = getDb();
-  const found = db
-    .prepare(
-      `SELECT payload FROM setup_waves_sessions WHERE user_id = ?`,
-    )
-    .get(sessionRowKey(userId, sourceCommand));
-  if (!found) return null;
-  try {
-    const row = JSON.parse(/** @type {{ payload: string }} */ (found).payload);
-    return normalizeRow(row);
-  } catch {
-    return null;
-  }
+  const r = loadSession(userId, sourceCommand);
+  return r.status === 'ok' ? r.session : null;
 }
 
 /**

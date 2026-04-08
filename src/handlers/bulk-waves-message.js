@@ -42,7 +42,7 @@ export async function handleBulkWavesDmMessage(message) {
   const allowed = parseAllowedUserIds(process.env.SETUP_WAVES_ALLOWED_USER_IDS);
   if (!allowed.has(message.author.id)) return;
 
-  const resolved = resolveBulkInputSession(message);
+  const resolved = await resolveBulkInputSession(message);
   if (!resolved) return;
 
   const { session } = resolved;
