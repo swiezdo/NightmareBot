@@ -295,14 +295,32 @@ export async function handleSetupWavesInteraction(interaction, _client) {
 
     if (session.messageId && interaction.channel?.isTextBased()) {
       try {
-        const msg = await interaction.channel.messages.fetch(session.messageId);
-        await msg.edit(payload);
+        try {
+          const oldMsg = await interaction.channel.messages.fetch(session.messageId);
+          await oldMsg.delete();
+        } catch {
+          /* already deleted or unavailable */
+        }
+        session.messageId = null;
+        session.channelId = null;
+
+        const ack = `${t('ru', 'setup_reset')} · ${t('en', 'setup_reset')}`;
+        await interaction.reply({ content: ack });
+
+        /** @type {import('discord.js').Message} */
+        let panelMsg;
+        try {
+          panelMsg = await interaction.followUp({ ...payload, fetchReply: true });
+        } catch (e) {
+          console.error('setup-waves followUp wizard panel', e);
+          panelMsg = await interaction.channel.send(payload);
+        }
+        session.messageId = panelMsg.id;
+        session.channelId = panelMsg.channelId;
         saveSession(session);
-        await interaction.reply({
-          content: `${t('ru', 'setup_reset')} · ${t('en', 'setup_reset')}`,
-        });
         return;
-      } catch {
+      } catch (e) {
+        console.error('setup-waves reopen panel', e);
         session.messageId = null;
         session.channelId = null;
       }
@@ -387,16 +405,35 @@ export async function handleSetupWavesInteraction(interaction, _client) {
 
     if (session.messageId && interaction.channel?.isTextBased()) {
       try {
-        const msg = await interaction.channel.messages.fetch(session.messageId);
-        await msg.edit(payload);
-        saveSession(session);
+        try {
+          const oldMsg = await interaction.channel.messages.fetch(session.messageId);
+          await oldMsg.delete();
+        } catch {
+          /* already deleted or unavailable */
+        }
+        session.messageId = null;
+        session.channelId = null;
+
         let ack = `${t('ru', 'edit_panel_reopened')} · ${t('en', 'edit_panel_reopened')}`;
         if (built.multiMap) {
           ack = `${ack}\n${t(loc, 'edit_tsushima_multi_map_note')}`;
         }
         await interaction.editReply({ content: ack });
+
+        /** @type {import('discord.js').Message} */
+        let panelMsg;
+        try {
+          panelMsg = await interaction.followUp({ ...payload, fetchReply: true });
+        } catch (e) {
+          console.error('edit-waves followUp wizard panel', e);
+          panelMsg = await interaction.channel.send(payload);
+        }
+        session.messageId = panelMsg.id;
+        session.channelId = panelMsg.channelId;
+        saveSession(session);
         return;
-      } catch {
+      } catch (e) {
+        console.error('edit-waves reopen panel', e);
         session.messageId = null;
         session.channelId = null;
       }
@@ -671,6 +708,56 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     }
 
     session.uiStep = 'spawn';
+    saveSession(session);
+    await interaction.deferUpdate();
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, rotations),
+    );
+    return;
+  }
+
+  if (id === 'waves:spawn:unknown') {
+    const ctxUnk = findWeekContext(rotations.en, rotations.ru, session.draft.week);
+    if (
+      !ctxUnk ||
+      session.pendingZoneIndex == null ||
+      session.pendingWave == null ||
+      session.pendingSpawn == null
+    ) {
+      const loc = /** @type {'en' | 'ru'} */ (session.locale);
+      session.uiStep = 'grid';
+      session.pendingWave = null;
+      session.pendingSpawn = null;
+      session.pendingZoneIndex = null;
+      saveSession(session);
+      await interaction.deferUpdate();
+      const payload = buildMessagePayload(session, rotations);
+      const prefix = !ctxUnk
+        ? t(loc, 'week_not_in_rotation')
+        : t(loc, 'invalid_wave_slot');
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        mergePayloadContent(prefix, payload),
+      );
+      return;
+    }
+    const ziU = session.pendingZoneIndex;
+    const { enMap: enU, ruMap: ruU } = ctxUnk;
+    const zoneEnU = enU.zones_spawns[ziU].zone;
+    const zoneRuU = ruU.zones_spawns[ziU].zone;
+    setWaveCell(session.draft, /** @type {number} */ (session.pendingWave), /** @type {number} */ (session.pendingSpawn), {
+      zoneEn: zoneEnU,
+      zoneRu: zoneRuU,
+      spawnEn: '',
+      spawnRu: '',
+    });
+    session.uiStep = 'grid';
+    session.pendingWave = null;
+    session.pendingSpawn = null;
+    session.pendingZoneIndex = null;
     saveSession(session);
     await interaction.deferUpdate();
     await editWizardMessageOrRecover(

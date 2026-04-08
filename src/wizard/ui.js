@@ -289,10 +289,12 @@ function buildMessagePayloadCore(session, rotations) {
       locale === 'en'
         ? enMap.zones_spawns[zi]?.zone ?? ''
         : ruMap.zones_spawns[zi]?.zone ?? '';
+    const zoneEnPick = enMap.zones_spawns[zi]?.zone ?? '';
+    const zoneRuPick = ruMap.zones_spawns[zi]?.zone ?? '';
     let content =
       pw != null && ps != null
-        ? `${formatWaveSpawnHeader(locale, pw, ps)}\n**${t(locale, 'zone_line_prefix')}** ${trunc(zoneNameRaw, 300)}\n${t(locale, 'choose_spawn')}`
-        : t(locale, 'choose_spawn');
+        ? `${formatWaveSpawnHeader(locale, pw, ps)}\n**${t(locale, 'zone_line_prefix')}** ${trunc(zoneNameRaw, 300)}\n${t(locale, 'choose_spawn')}\n${t(locale, 'spawn_unknown_hint')}`
+        : `${t(locale, 'choose_spawn')}\n${t(locale, 'spawn_unknown_hint')}`;
 
     /** @type {ActionRowBuilder[]} */
     const spawnRows = [];
@@ -314,6 +316,23 @@ function buildMessagePayloadCore(session, rotations) {
       }
     }
     if (cur.components.length) spawnRows.push(cur);
+
+    const unknownSaved =
+      Boolean(cell?.zone_en) &&
+      cell.zone_en === zoneEnPick &&
+      cell.zone_ru === zoneRuPick &&
+      !String(cell.spawn_en ?? '').trim() &&
+      !String(cell.spawn_ru ?? '').trim();
+    spawnRows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(appendFlowSuffix('waves:spawn:unknown', session.sourceCommand))
+          .setStyle(unknownSaved ? ButtonStyle.Success : ButtonStyle.Secondary)
+          .setEmoji('❓')
+          .setLabel(ZWSP),
+      ),
+    );
+
     spawnRows.push(wizardBackRow(locale, 'zone', session));
     return { content, components: spawnRows };
   }

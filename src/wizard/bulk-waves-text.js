@@ -130,6 +130,61 @@ function buildSortedMatchers(catalog) {
 }
 
 /**
+ * Matchers from catalog plus zone-only keys (empty spawn) for multi-spawn zones.
+ *
+ * @param {SpawnCatalogEntry[]} catalog
+ */
+function buildSortedMatchersWithZoneOnly(catalog) {
+  /** @type {Map<string, SpawnCatalogEntry[]>} */
+  const byZone = new Map();
+  for (const e of catalog) {
+    const z = e.zoneEn;
+    if (!byZone.has(z)) byZone.set(z, []);
+    byZone.get(z).push(e);
+  }
+  /** @type {{ key: string, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string }[]} */
+  const extra = [];
+  for (const entries of byZone.values()) {
+    if (entries.length <= 1) continue;
+    const e0 = entries[0];
+    const zn = normToken(e0.zoneEn);
+    const rn = normToken(e0.zoneRu);
+    if (zn) {
+      extra.push({
+        key: zn,
+        zoneEn: e0.zoneEn,
+        zoneRu: e0.zoneRu,
+        spawnEn: '',
+        spawnRu: '',
+      });
+    }
+    if (rn && rn !== zn) {
+      extra.push({
+        key: rn,
+        zoneEn: e0.zoneEn,
+        zoneRu: e0.zoneRu,
+        spawnEn: '',
+        spawnRu: '',
+      });
+    }
+  }
+  const merged = [...buildSortedMatchers(catalog), ...extra];
+  merged.sort((a, b) => b.key.length - a.key.length);
+  const seen = new Set();
+  /** @type {typeof merged} */
+  const uniq = [];
+  for (const m of merged) {
+    if (seen.has(m.key)) continue;
+    seen.add(m.key);
+    uniq.push(m);
+  }
+  return uniq;
+}
+
+/** Suffix `?` or `❓` = force empty spawn after match. */
+const UNKNOWN_SPAWN_SUFFIX_RE = /\s*[\u003f\u2753]\s*$/u;
+
+/**
  * @param {string} token
  * @param {{ key: string, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string }[]} matchers
  */
@@ -147,6 +202,21 @@ function matchSlotToken(token, matchers) {
     }
   }
   return null;
+}
+
+/**
+ * @param {string} token
+ * @param {{ key: string, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string }[]} matchers
+ */
+function matchSlotTokenAllowUnknownSpawn(token, matchers) {
+  const hadUnknown = UNKNOWN_SPAWN_SUFFIX_RE.test(token);
+  const base = token.replace(UNKNOWN_SPAWN_SUFFIX_RE, '').trim();
+  const cell = matchSlotToken(base, matchers);
+  if (!cell) return null;
+  if (hadUnknown) {
+    return { ...cell, spawnEn: '', spawnRu: '' };
+  }
+  return cell;
 }
 
 /**
@@ -177,7 +247,7 @@ const LINE_RE = /^\s*(\d+)\s*\.\s*(.+)$/;
  * @param {SpawnCatalogEntry[]} catalog
  */
 export function parseBulkWavesText(text, catalog) {
-  const matchers = buildSortedMatchers(catalog);
+  const matchers = buildSortedMatchersWithZoneOnly(catalog);
   /** @type {Map<number, string[]>} */
   const waveMap = new Map();
 
@@ -242,7 +312,7 @@ export function parseBulkWavesText(text, catalog) {
     const parts = /** @type {string[]} */ (waveMap.get(w));
     for (let si = 0; si < SLOTS_PER_WAVE; si++) {
       const token = parts[si];
-      const cell = matchSlotToken(token, matchers);
+      const cell = matchSlotTokenAllowUnknownSpawn(token, matchers);
       if (!cell) {
         slotErrors.push({ wave: w, slotIdx: si, token });
       } else {

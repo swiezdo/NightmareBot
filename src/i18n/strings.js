@@ -8,6 +8,7 @@ export const strings = {
     choose_wave: 'Choose wave (slot):',
     choose_zone: 'Choose zone:',
     choose_spawn: 'Choose spawn:',
+    spawn_unknown_hint: '❓ = spawn unknown (saved with empty spawn).',
     btn_done: 'Done',
     forbidden: 'You are not allowed to use this command.',
     dm_only:
@@ -23,7 +24,7 @@ export const strings = {
     api_week_line: 'Site week (week_start): **{week}**',
     grid_incomplete: 'The wave grid is not complete yet.',
     setup_reset: 'Starting over. Use the buttons below.',
-    edit_panel_reopened: 'Edit session: panel updated below.',
+    edit_panel_reopened: 'Edit panel updated below.',
     week_prefix: 'Map:',
     all_filled_hint: 'All wave slots are filled. Press **Done** to save.',
     confirm_saved: 'You can run `/setup-waves` or `/edit-waves` again.',
@@ -53,7 +54,8 @@ export const strings = {
     week_select_failed: 'That week is no longer in rotation. Pick another one below.',
     invalid_wave_slot: 'Invalid wave slot.',
     bulk_intro: '',
-    bulk_spawn_names_header: 'Use only these spawn names (zone + spawn, or zone only if there is a single spawn):',
+    bulk_spawn_names_header:
+      'Use only these labels. Per slot: full **zone + spawn**, or **zone only** for multi-spawn zones (empty spawn), or add *?* after any label to force empty spawn.',
     bulk_format_header: 'Format (one line per wave, three slots separated by commas):',
     bulk_format_and_so_on: 'and so on',
     bulk_reply_hint: 'Send your list as a **reply** to this message.',
@@ -90,6 +92,7 @@ export const strings = {
     choose_wave: 'Выберите волну (ячейку):',
     choose_zone: 'Выберите зону:',
     choose_spawn: 'Выберите спавн:',
+    spawn_unknown_hint: '❓ = спавн неизвестен (сохранится с пустым спавном).',
     btn_done: 'Готово',
     forbidden: 'У вас нет доступа к этой команде.',
     dm_only:
@@ -105,7 +108,7 @@ export const strings = {
     api_week_line: 'Неделя на сайте (week_start): **{week}**',
     grid_incomplete: 'Сетка волн заполнена не полностью.',
     setup_reset: 'Начинаем заново. Используйте кнопки ниже.',
-    edit_panel_reopened: 'Редактирование: панель обновлена ниже.',
+    edit_panel_reopened: 'Панель редактирования обновлена ниже.',
     week_prefix: 'Карта:',
     all_filled_hint: 'Все ячейки заполнены. Нажмите **Готово**, чтобы сохранить.',
     confirm_saved: 'Можно снова вызвать `/setup-waves` или `/edit-waves`.',
@@ -135,7 +138,8 @@ export const strings = {
     week_select_failed: 'Этой недели больше нет в ротации. Выберите другую ниже.',
     invalid_wave_slot: 'Некорректная ячейка волны.',
     bulk_intro: '',
-    bulk_spawn_names_header: 'Используйте только такие названия (зона и спавн, либо только зона, если спавн один):',
+    bulk_spawn_names_header:
+      'Используйте только эти подписи. На ячейку: полностью **зона + спавн**, либо **только зона** у зон с несколькими спавнами (пустой спавн), либо добавьте *?* после любой подписи, чтобы принудительно оставить спавн пустым.',
     bulk_format_header: 'Формат (одна строка на волну, три ячейки через запятую):',
     bulk_format_and_so_on: 'и так далее',
     bulk_reply_hint: 'Пришлите список **ответом** на это сообщение.',
