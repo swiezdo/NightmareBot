@@ -176,8 +176,10 @@ function buildMainContent(ctx, locale, weekCode, missingCtxNote) {
     }
     const mod1 = String(week?.mod1 ?? '').trim();
     const mod2 = String(week?.mod2 ?? '').trim();
-    if (mod1) lines.push(`> ${mod1}`);
-    if (mod2) lines.push(`> ${mod2}`);
+    const mod1Icon = String(week?.mod1_icon ?? '').trim();
+    const mod2Icon = String(week?.mod2_icon ?? '').trim();
+    if (mod1) lines.push(`> ${mod1}${mod1Icon ? ` ${mod1Icon}` : ''}`);
+    if (mod2) lines.push(`> ${mod2}${mod2Icon ? ` ${mod2Icon}` : ''}`);
   } else {
     lines.push(missingCtxNote);
   }
@@ -189,6 +191,26 @@ function buildMainContent(ctx, locale, weekCode, missingCtxNote) {
 const EMBED_FOOTER_TEXT_MAX = 2048;
 
 /**
+ * Кастомный эмодзи Discord → URL на CDN для embed thumbnail/image.
+ *
+ * @param {unknown} raw `<:name:id>` или `<a:name:id>`
+ * @returns {string | null}
+ */
+function discordCustomEmojiToCdnUrl(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return null;
+  const animated = s.match(/^<a:([^:]+):(\d+)>$/);
+  if (animated) {
+    return `https://cdn.discordapp.com/emojis/${animated[2]}.gif`;
+  }
+  const stat = s.match(/^<:([^:]+):(\d+)>$/);
+  if (stat) {
+    return `https://cdn.discordapp.com/emojis/${stat[2]}.png`;
+  }
+  return null;
+}
+
+/**
  * @param {object|null} ctx
  * @param {'en' | 'ru'} locale
  * @param {unknown} wavesRaw
@@ -197,16 +219,24 @@ const EMBED_FOOTER_TEXT_MAX = 2048;
  */
 function buildWaveEmbedGroups(ctx, locale, wavesRaw, creditFooter) {
   const fifteen = buildFifteenWaveLines(ctx, locale, wavesRaw);
+  const map = ctx != null ? (locale === 'ru' ? ctx.ruMap : ctx.enMap) : null;
+  const objectives =
+    map?.objectives && typeof map.objectives === 'object' ? map.objectives : null;
+
   /** @type {EmbedBuilder[]} */
   const embeds = [];
   for (let g = 0; g < EMBED_GROUP_COUNT; g += 1) {
     const slice = fifteen.slice(g * WAVES_PER_EMBED, (g + 1) * WAVES_PER_EMBED);
     const description = slice.join(WAVE_BLOCK_SEPARATOR).slice(0, 4096);
-    embeds.push(
-      new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setDescription(description || '—'),
-    );
+    const iconKey = `objective${g + 1}_icon`;
+    const iconRaw = objectives ? /** @type {Record<string, unknown>} */ (objectives)[iconKey] : undefined;
+    const thumbUrl = discordCustomEmojiToCdnUrl(iconRaw);
+
+    const embed = new EmbedBuilder()
+      .setColor(EMBED_COLOR)
+      .setDescription(description || '—');
+    if (thumbUrl) embed.setThumbnail(thumbUrl);
+    embeds.push(embed);
   }
 
   const credit = String(creditFooter ?? '').trim();
