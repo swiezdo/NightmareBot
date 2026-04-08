@@ -6,20 +6,22 @@ const WAVES_PER_EMBED = 3;
 const EMBED_GROUP_COUNT = Math.ceil(TOTAL_WAVES / WAVES_PER_EMBED);
 const EMBED_COLOR = 0x5865f2;
 /** Отступ для 2-й и 3-й ячейки волны (под первой строкой с номером). */
-const WAVE_SLOT_INDENT = '   ';
+const WAVE_SLOT_INDENT = '    ';
 /** Разделитель между волнами в описании эмбеда (с переводами строк). */
 const WAVE_BLOCK_SEPARATOR = `\n${'\u2500'.repeat(18)}\n`;
 
-/**
- * @param {number} indexZeroBased
- */
-function waveLinePrefix(indexZeroBased) {
-  return `${indexZeroBased + 1}.`;
+/** Доп. отступ для 2-й и далее строк при двузначном номере (шире «N.»). У 11-й — на 1 пробел меньше. */
+const WIDE_WAVE_CONT_EXTRA = '   ';
+
+function waveContinuationExtraIndent(waveNum) {
+  if (waveNum < 10) return '';
+  if (waveNum === 11) return WIDE_WAVE_CONT_EXTRA.slice(1);
+  return WIDE_WAVE_CONT_EXTRA;
 }
 
-/** Жирный текст для каждой 3-й волны (3, 6, 9, 12, 15) в Discord markdown. */
-function wrapThirdWaveBold(waveNum, line) {
-  return waveNum > 0 && waveNum % 3 === 0 ? `**${line}**` : line;
+/** Номер волны в Discord markdown (жирный): `**1.**` */
+function boldWavePrefix(waveNum) {
+  return `**${waveNum}.**`;
 }
 
 /**
@@ -99,22 +101,18 @@ function formatSpawnLabel(ctx, locale, zone, spawn) {
  * @param {{ spawns: ReturnType<typeof normalizeWaveSpawns> }} row
  */
 function formatOneWaveLine(ctx, locale, waveNum, row) {
-  const idx = waveNum - 1;
   const spawns = row.spawns;
   if (spawns.length === 0) {
-    return wrapThirdWaveBold(
-      waveNum,
-      `${waveLinePrefix(idx)} ${locale === 'ru' ? '_(нет спавнов)_' : '_(no spawns)_'}`,
-    );
+    return `${boldWavePrefix(waveNum)} ${locale === 'ru' ? '_(нет спавнов)_' : '_(no spawns)_'}`;
   }
   const parts = spawns.map(({ zone, spawn }) => formatSpawnLabel(ctx, locale, zone, spawn));
-  const first = `${waveLinePrefix(idx)} ${parts[0]}`;
+  const contExtra = waveContinuationExtraIndent(waveNum);
+  const first = `${boldWavePrefix(waveNum)} ${parts[0]}`;
   const rest = parts
     .slice(1)
-    .map((p) => `${WAVE_SLOT_INDENT}${p}`)
+    .map((p) => `${WAVE_SLOT_INDENT}${contExtra}${p}`)
     .join('\n');
-  const block = rest ? `${first}\n${rest}` : first;
-  return wrapThirdWaveBold(waveNum, block);
+  return rest ? `${first}\n${rest}` : first;
 }
 
 /**
@@ -141,23 +139,24 @@ function buildFifteenWaveLines(ctx, locale, wavesRaw) {
       lines.push(formatOneWaveLine(ctx, locale, w, row));
     } else {
       lines.push(
-        wrapThirdWaveBold(
-          w,
-          `${waveLinePrefix(w - 1)} ${locale === 'ru' ? '_(нет данных)_' : '_(no data)_'}`,
-        ),
+        `${boldWavePrefix(w)} ${locale === 'ru' ? '_(нет данных)_' : '_(no data)_'}`,
       );
     }
   }
   return lines;
 }
 
+/** Лимит текста сообщения Discord (content). */
+const MESSAGE_CONTENT_MAX = 2000;
+
 /**
  * @param {object|null} ctx
  * @param {'en' | 'ru'} locale
  * @param {string} weekCode
  * @param {string} missingCtxNote
+ * @param {string} [creditText]
  */
-function buildMainContent(ctx, locale, weekCode, missingCtxNote) {
+function buildMainContent(ctx, locale, weekCode, missingCtxNote, creditText) {
   const wc = String(weekCode ?? '').trim() || '?';
   const lines = [];
 
@@ -184,7 +183,27 @@ function buildMainContent(ctx, locale, weekCode, missingCtxNote) {
     lines.push(missingCtxNote);
   }
 
-  return lines.join('\n');
+  const body = lines.join('\n');
+  const credit = String(creditText ?? '').trim();
+  if (ctx && credit) {
+    let creditLine = `*${credit}*`;
+    if (creditLine.length > MESSAGE_CONTENT_MAX) {
+      const innerMax = MESSAGE_CONTENT_MAX - 3;
+      creditLine = `*${credit.slice(0, Math.max(0, innerMax - 1))}…*`;
+    }
+    const sepLen = 2;
+    const maxBody = MESSAGE_CONTENT_MAX - sepLen - creditLine.length;
+    if (maxBody < 0) {
+      return creditLine.slice(0, MESSAGE_CONTENT_MAX);
+    }
+    const trimmedBody =
+      body.length > maxBody ? `${body.slice(0, Math.max(0, maxBody - 1))}…` : body;
+    return `${trimmedBody}\n\n${creditLine}`;
+  }
+
+  return body.length > MESSAGE_CONTENT_MAX
+    ? `${body.slice(0, MESSAGE_CONTENT_MAX - 1)}…`
+    : body;
 }
 
 /** Лимит текста footer в Discord. */
@@ -214,14 +233,15 @@ function discordCustomEmojiToCdnUrl(raw) {
  * @param {object|null} ctx
  * @param {'en' | 'ru'} locale
  * @param {unknown} wavesRaw
- * @param {string} [creditFooter]
  * @returns {EmbedBuilder[]}
  */
-function buildWaveEmbedGroups(ctx, locale, wavesRaw, creditFooter) {
+function buildWaveEmbedGroups(ctx, locale, wavesRaw) {
   const fifteen = buildFifteenWaveLines(ctx, locale, wavesRaw);
   const map = ctx != null ? (locale === 'ru' ? ctx.ruMap : ctx.enMap) : null;
   const objectives =
     map?.objectives && typeof map.objectives === 'object' ? map.objectives : null;
+  const modsBlock =
+    map?.mods && typeof map.mods === 'object' ? /** @type {Record<string, unknown>} */ (map.mods) : null;
 
   /** @type {EmbedBuilder[]} */
   const embeds = [];
@@ -232,20 +252,27 @@ function buildWaveEmbedGroups(ctx, locale, wavesRaw, creditFooter) {
     const iconRaw = objectives ? /** @type {Record<string, unknown>} */ (objectives)[iconKey] : undefined;
     const thumbUrl = discordCustomEmojiToCdnUrl(iconRaw);
 
+    const seg = g + 1;
+    const mapModName = modsBlock ? String(modsBlock[`mod${seg}`] ?? '').trim() : '';
+    const mapModIconRaw = modsBlock ? String(modsBlock[`mod${seg}_icon`] ?? '').trim() : '';
+    const segmentFooterIconUrl = discordCustomEmojiToCdnUrl(mapModIconRaw);
+
+    const footerWave = seg * WAVES_PER_EMBED;
+    const waveLabel = locale === 'ru' ? `Волна ${footerWave}` : `Wave ${footerWave}`;
+    let footerText = mapModName ? `${waveLabel} — ${mapModName}` : waveLabel;
+    if (footerText.length > EMBED_FOOTER_TEXT_MAX) {
+      footerText = `${footerText.slice(0, EMBED_FOOTER_TEXT_MAX - 1)}…`;
+    }
+
     const embed = new EmbedBuilder()
       .setColor(EMBED_COLOR)
       .setDescription(description || '—');
     if (thumbUrl) embed.setThumbnail(thumbUrl);
+    /** @type {{ text: string, iconURL?: string }} */
+    const footerOpts = { text: footerText };
+    if (segmentFooterIconUrl) footerOpts.iconURL = segmentFooterIconUrl;
+    embed.setFooter(footerOpts);
     embeds.push(embed);
-  }
-
-  const credit = String(creditFooter ?? '').trim();
-  if (credit && embeds.length > 0) {
-    const footerText =
-      credit.length > EMBED_FOOTER_TEXT_MAX
-        ? `${credit.slice(0, EMBED_FOOTER_TEXT_MAX - 1)}…`
-        : credit;
-    embeds[embeds.length - 1].setFooter({ text: footerText });
   }
 
   return embeds;
@@ -295,10 +322,9 @@ export function formatTsushimaRotationEmbedPayloads(apiJson, options = {}) {
           ? String(row.credit_text)
           : '';
     const ctx = weekCode ? findWeekContext(en, ru, weekCode) : null;
-    const content = buildMainContent(ctx, locale, weekCode, missingCtxNote);
-    const embeds = buildWaveEmbedGroups(ctx, locale, waves, creditText);
-    const contentTrimmed = content.length > 2000 ? `${content.slice(0, 1998)}…` : content;
-    out.push({ content: contentTrimmed, embeds });
+    const content = buildMainContent(ctx, locale, weekCode, missingCtxNote, creditText);
+    const embeds = buildWaveEmbedGroups(ctx, locale, waves);
+    out.push({ content, embeds });
   }
 
   if (out.length === 0) {
