@@ -4,12 +4,47 @@ import Database from 'better-sqlite3';
 import { DATA_DIR, DB_PATH } from '../paths.js';
 import { SESSION_TTL_MS } from './session-ttl.js';
 
+export const SESSIONS_TABLE = 'sessions';
+
 /** @type {import('better-sqlite3').default | null} */
 let db = null;
 
+/** @param {string} name */
+function tableExists(name) {
+  const row = db
+    .prepare(
+      `SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?`,
+    )
+    .get(name);
+  return Boolean(row);
+}
+
+/** Схема `sessions`; при старой БД — одноразовый RENAME с `setup_waves_sessions`. */
+function ensureSessionsTable() {
+  const legacy = 'setup_waves_sessions';
+  if (tableExists(legacy) && !tableExists(SESSIONS_TABLE)) {
+    db.exec(`ALTER TABLE ${legacy} RENAME TO ${SESSIONS_TABLE}`);
+    db.exec('DROP INDEX IF EXISTS idx_setup_waves_sessions_updated_at');
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_sessions_updated_at ON ${SESSIONS_TABLE} (updated_at)`,
+    );
+    console.log('[db] Renamed table setup_waves_sessions -> sessions');
+    return;
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ${SESSIONS_TABLE} (
+      user_id TEXT PRIMARY KEY NOT NULL,
+      payload TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_updated_at
+      ON ${SESSIONS_TABLE} (updated_at);
+  `);
+}
+
 function migrateLegacySessionsJson() {
   const row = /** @type {{ c: number }} */ (
-    db.prepare('SELECT COUNT(*) AS c FROM setup_waves_sessions').get()
+    db.prepare(`SELECT COUNT(*) AS c FROM ${SESSIONS_TABLE}`).get()
   );
   if (row.c > 0) return;
 
@@ -22,7 +57,7 @@ function migrateLegacySessionsJson() {
     if (!all || typeof all !== 'object') return;
 
     const insert = db.prepare(`
-      INSERT OR REPLACE INTO setup_waves_sessions (user_id, payload, updated_at)
+      INSERT OR REPLACE INTO ${SESSIONS_TABLE} (user_id, payload, updated_at)
       VALUES (@user_id, @payload, @updated_at)
     `);
 
@@ -58,15 +93,7 @@ export function initDatabase() {
   db = new Database(DB_PATH);
   db.pragma('foreign_keys = ON');
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS setup_waves_sessions (
-      user_id TEXT PRIMARY KEY NOT NULL,
-      payload TEXT NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_setup_waves_sessions_updated_at
-      ON setup_waves_sessions (updated_at);
-  `);
+  ensureSessionsTable();
 
   db.exec('DROP TABLE IF EXISTS waves_tsushima_publish;');
 
@@ -75,10 +102,10 @@ export function initDatabase() {
 
   const staleBefore = Date.now() - SESSION_TTL_MS;
   const expired = db
-    .prepare(`DELETE FROM setup_waves_sessions WHERE updated_at < ?`)
+    .prepare(`DELETE FROM ${SESSIONS_TABLE} WHERE updated_at < ?`)
     .run(staleBefore);
   if (expired.changes > 0) {
-    console.log('[db] Removed expired setup_waves_sessions rows:', expired.changes);
+    console.log('[db] Removed expired sessions rows:', expired.changes);
   }
 }
 
@@ -87,7 +114,7 @@ function migrateSessionKeysToScoped() {
   try {
     const info = db.prepare(
       `
-      UPDATE setup_waves_sessions
+      UPDATE ${SESSIONS_TABLE}
       SET user_id = user_id || ':setup-waves'
       WHERE instr(user_id, ':') = 0
     `,

@@ -1,4 +1,4 @@
-import { getDb } from './database.js';
+import { getDb, SESSIONS_TABLE } from './database.js';
 import { SESSION_TTL_MS } from './session-ttl.js';
 import { GRID_PAGE_COUNT } from '../wizard/constants.js';
 
@@ -50,7 +50,7 @@ export function loadSession(userId, sourceCommand = 'setup-waves') {
   const key = sessionRowKey(userId, sourceCommand);
   const found = db
     .prepare(
-      `SELECT payload, updated_at FROM setup_waves_sessions WHERE user_id = ?`,
+      `SELECT payload, updated_at FROM ${SESSIONS_TABLE} WHERE user_id = ?`,
     )
     .get(key);
   if (!found) return { status: 'missing' };
@@ -69,7 +69,7 @@ export function loadSession(userId, sourceCommand = 'setup-waves') {
     } catch {
       /* ignore */
     }
-    db.prepare(`DELETE FROM setup_waves_sessions WHERE user_id = ?`).run(key);
+    db.prepare(`DELETE FROM ${SESSIONS_TABLE} WHERE user_id = ?`).run(key);
     return { status: 'expired', ...expired };
   }
   try {
@@ -113,7 +113,7 @@ export function saveSession(row) {
   };
   db.prepare(
     `
-    INSERT OR REPLACE INTO setup_waves_sessions (user_id, payload, updated_at)
+    INSERT OR REPLACE INTO ${SESSIONS_TABLE} (user_id, payload, updated_at)
     VALUES (@user_id, @payload, @updated_at)
   `,
   ).run({
@@ -129,7 +129,7 @@ export function saveSession(row) {
  */
 export function deleteSession(userId, sourceCommand = 'setup-waves') {
   const db = getDb();
-  db.prepare(`DELETE FROM setup_waves_sessions WHERE user_id = ?`).run(
+  db.prepare(`DELETE FROM ${SESSIONS_TABLE} WHERE user_id = ?`).run(
     sessionRowKey(userId, sourceCommand),
   );
 }

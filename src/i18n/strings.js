@@ -29,7 +29,7 @@ export const strings = {
     confirm_saved: 'You can run `/setup-waves` or `/edit-waves` again.',
     session_stale: 'Session expired or missing. Run `/setup-waves` or `/edit-waves` again.',
     session_expired_idle:
-      'Session expired (no activity for one hour). Run `/setup-waves` or `/edit-waves` to open a new panel.',
+      'Session expired (no activity for 30 minutes). Run `/setup-waves` or `/edit-waves` to open a new panel.',
     wizard_message_deleted:
       'The wizard message was deleted or is no longer available. Run `/setup-waves` or `/edit-waves` again to open a new panel.',
     grid_page: 'Page {cur}/{tot}',
@@ -111,7 +111,7 @@ export const strings = {
     confirm_saved: 'Можно снова вызвать `/setup-waves` или `/edit-waves`.',
     session_stale: 'Сессия сброшена или устарела. Запустите `/setup-waves` или `/edit-waves`.',
     session_expired_idle:
-      'Сессия истекла (час без активности). Запустите `/setup-waves` или `/edit-waves`, чтобы открыть новую панель.',
+      'Сессия истекла (30 минут без активности). Запустите `/setup-waves` или `/edit-waves`, чтобы открыть новую панель.',
     wizard_message_deleted:
       'Сообщение мастера удалено или недоступно. Запустите `/setup-waves` или `/edit-waves`, чтобы открыть новую панель.',
     grid_page: 'Страница {cur}/{tot}',

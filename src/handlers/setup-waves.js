@@ -212,6 +212,27 @@ async function ensureDm(interaction) {
  * @param {string} game
  * @param {{ draft?: object, sourceCommand?: string }} [options]
  */
+/**
+ * Закрыть панель мастера другого потока (setup ↔ edit), чтобы в ЛС не оставалось двух наборов кнопок.
+ *
+ * @param {import('discord.js').Interaction} interaction
+ * @param {'setup-waves' | 'edit-waves'} otherFlow
+ */
+async function dismissOtherFlowSession(interaction, otherFlow) {
+  const loaded = loadSession(interaction.user.id, otherFlow);
+  if (loaded.status !== 'ok') return;
+  const ch = interaction.channel;
+  const mid = loaded.session.messageId;
+  if (mid && ch?.isTextBased()) {
+    try {
+      await ch.messages.delete(mid);
+    } catch {
+      /* сообщение уже удалено или недоступно */
+    }
+  }
+  deleteSession(interaction.user.id, otherFlow);
+}
+
 function newSession(userId, game, options = {}) {
   const sourceCommand = options.sourceCommand ?? 'setup-waves';
   return {
@@ -262,6 +283,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     if (prevLoad.status === 'expired') {
       await editExpiredWizardMessageFromInteraction(interaction, prevLoad);
     }
+    await dismissOtherFlowSession(interaction, 'edit-waves');
     const prev = prevLoad.status === 'ok' ? prevLoad.session : null;
     const session = newSession(interaction.user.id, game, { sourceCommand: 'setup-waves' });
     if (prev?.messageId && prev?.channelId) {
@@ -344,6 +366,8 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       await interaction.editReply({ content: t(loc, key) });
       return;
     }
+
+    await dismissOtherFlowSession(interaction, 'setup-waves');
 
     const prevLoad = loadSession(interaction.user.id, 'edit-waves');
     if (prevLoad.status === 'expired') {
