@@ -2,7 +2,7 @@ import { ChannelType } from 'discord.js';
 import { t } from '../i18n/strings.js';
 import { fetchTsushimaRotationRead } from '../api/nightmare-tsushima.js';
 import { fetchYoteiRotationRead } from '../api/nightmare-yotei.js';
-import { formatTsushimaRotationChunks } from '../utils/tsushima-waves-format.js';
+import { formatTsushimaRotationEmbedPayloads } from '../utils/tsushima-waves-format.js';
 import { formatYoteiRotationChunks } from '../utils/yotei-waves-format.js';
 
 /**
@@ -42,6 +42,26 @@ async function replyWithChunks(interaction, chunks) {
   for (const part of rest) {
     await interaction.followUp({
       content: part,
+      allowedMentions: { parse: [] },
+    });
+  }
+}
+
+/**
+ * @param {import('discord.js').ChatInputCommandInteraction} interaction
+ * @param {Array<{ content: string, embeds: import('discord.js').EmbedBuilder[] }>} payloads
+ */
+async function replyWithEmbedPayloads(interaction, payloads) {
+  const [first, ...rest] = payloads;
+  await interaction.editReply({
+    content: first.content || '—',
+    embeds: first.embeds,
+    allowedMentions: { parse: [] },
+  });
+  for (const p of rest) {
+    await interaction.followUp({
+      content: p.content || '—',
+      embeds: p.embeds,
       allowedMentions: { parse: [] },
     });
   }
@@ -115,8 +135,8 @@ export async function handleWavesCommand(interaction) {
       return;
     }
 
-    const chunks = formatTsushimaRotationChunks(data, { locale: lang });
-    await replyWithChunks(interaction, chunks);
+    const payloads = formatTsushimaRotationEmbedPayloads(data, { locale: lang });
+    await replyWithEmbedPayloads(interaction, payloads);
   } catch (e) {
     const isTimeout =
       e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');

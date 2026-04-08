@@ -1,34 +1,25 @@
+import { EmbedBuilder } from 'discord.js';
 import { loadRotations, findWeekContext, translateZoneSpawn } from '../data/rotation.js';
+import { TOTAL_WAVES } from '../wizard/constants.js';
 
-/** Запас под лимит Discord 2000. */
-const DISCORD_CHUNK_MAX = 1900;
-
-const KEYCAP_PREFIXES = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
+const WAVES_PER_EMBED = 3;
+const EMBED_GROUP_COUNT = Math.ceil(TOTAL_WAVES / WAVES_PER_EMBED);
+const EMBED_COLOR = 0x5865f2;
+/** Отступ для 2-й и 3-й ячейки волны (под первой строкой с номером). */
+const WAVE_SLOT_INDENT = '   ';
+/** Разделитель между волнами в описании эмбеда (с переводами строк). */
+const WAVE_BLOCK_SEPARATOR = `\n${'\u2500'.repeat(18)}\n`;
 
 /**
  * @param {number} indexZeroBased
  */
 function waveLinePrefix(indexZeroBased) {
-  const n = indexZeroBased + 1;
-  if (n >= 1 && n <= KEYCAP_PREFIXES.length) return KEYCAP_PREFIXES[n - 1];
-  return `${n}.`;
+  return `${indexZeroBased + 1}.`;
 }
 
-/**
- * @param {import('../data/rotation.js').RotationMap} map
- */
-function formatObjectivesLines(map) {
-  const o = map?.objectives;
-  if (!o || typeof o !== 'object') return '';
-  const lines = [];
-  for (let i = 1; i <= 5; i++) {
-    const text = o[`objective${i}`];
-    const num = o[`objective${i}_num`];
-    if (text != null && String(text).trim() && num != null && Number(num) > 0) {
-      lines.push(`• **${num}**× ${String(text).trim()}`);
-    }
-  }
-  return lines.join('\n');
+/** Жирный текст для каждой 3-й волны (3, 6, 9, 12, 15) в Discord markdown. */
+function wrapThirdWaveBold(waveNum, line) {
+  return waveNum > 0 && waveNum % 3 === 0 ? `**${line}**` : line;
 }
 
 /**
@@ -51,15 +42,12 @@ export function normalizeWaveSpawns(spawnsRaw) {
 }
 
 /**
- * @param {object} ctx — findWeekContext result
- * @param {'en' | 'ru'} locale
  * @param {unknown} wavesRaw
- * @param {string} weekCode
+ * @returns {Array<{ wave: number, spawns: ReturnType<typeof normalizeWaveSpawns> }>}
  */
-function formatWavesSection(ctx, locale, wavesRaw, weekCode) {
+function normalizeWavesRows(wavesRaw) {
   const waves = Array.isArray(wavesRaw) ? wavesRaw : [];
-  /** @type {Array<{ wave: number, spawns: ReturnType<typeof normalizeWaveSpawns> }>} */
-  const normalized = waves
+  return waves
     .map((w, idx) => {
       if (!w || typeof w !== 'object') return null;
       const o = /** @type {Record<string, unknown>} */ (w);
@@ -67,119 +55,178 @@ function formatWavesSection(ctx, locale, wavesRaw, weekCode) {
       const spawns = normalizeWaveSpawns(o.spawns);
       return { wave: Number.isFinite(waveNum) ? waveNum : idx + 1, spawns };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => a.wave - b.wave);
+}
 
-  const lines = [];
-  let waveIdx = 0;
+/**
+ * @param {object|null} ctx
+ * @param {'en' | 'ru'} locale
+ * @param {string} zone
+ * @param {string} spawn
+ */
+function formatSpawnLabel(ctx, locale, zone, spawn) {
+  const zEn = String(zone ?? '').trim();
+  const sEn = String(spawn ?? '').trim();
+
+  if (!ctx) {
+    if (!sEn) return zEn;
+    if (zEn === sEn) return zEn;
+    return `${zEn} ${sEn}`;
+  }
+
+  const { enMap, ruMap } = ctx;
+  if (locale === 'ru') {
+    const tr = translateZoneSpawn(enMap, ruMap, zEn, sEn);
+    const z = String(tr.zone ?? '').trim();
+    const s = String(tr.spawn ?? '').trim();
+    if (!s) return z;
+    if (z === s) return z;
+    return `${z} ${s}`;
+  }
+
+  if (!sEn) return zEn;
+  if (zEn === sEn) return zEn;
+  return `${zEn} ${sEn}`;
+}
+
+/**
+ * Один блок волны: первая ячейка с номером, остальные с отступом на новых строках.
+ *
+ * @param {object|null} ctx
+ * @param {'en' | 'ru'} locale
+ * @param {number} waveNum 1-based
+ * @param {{ spawns: ReturnType<typeof normalizeWaveSpawns> }} row
+ */
+function formatOneWaveLine(ctx, locale, waveNum, row) {
+  const idx = waveNum - 1;
+  const spawns = row.spawns;
+  if (spawns.length === 0) {
+    return wrapThirdWaveBold(
+      waveNum,
+      `${waveLinePrefix(idx)} ${locale === 'ru' ? '_(нет спавнов)_' : '_(no spawns)_'}`,
+    );
+  }
+  const parts = spawns.map(({ zone, spawn }) => formatSpawnLabel(ctx, locale, zone, spawn));
+  const first = `${waveLinePrefix(idx)} ${parts[0]}`;
+  const rest = parts
+    .slice(1)
+    .map((p) => `${WAVE_SLOT_INDENT}${p}`)
+    .join('\n');
+  const block = rest ? `${first}\n${rest}` : first;
+  return wrapThirdWaveBold(waveNum, block);
+}
+
+/**
+ * @param {object|null} ctx
+ * @param {'en' | 'ru'} locale
+ * @param {unknown} wavesRaw
+ * @returns {string[]}
+ */
+function buildFifteenWaveLines(ctx, locale, wavesRaw) {
+  const normalized = normalizeWavesRows(wavesRaw);
+  /** @type {Map<number, { spawns: ReturnType<typeof normalizeWaveSpawns> }>} */
+  const byWave = new Map();
   for (const row of normalized) {
-    const spawns = row.spawns;
-    if (spawns.length === 0) {
-      lines.push(`${waveLinePrefix(waveIdx)} _(нет спавнов)_`);
-      waveIdx += 1;
-      continue;
+    if (row.wave >= 1 && row.wave <= TOTAL_WAVES) {
+      byWave.set(row.wave, { spawns: row.spawns });
     }
-    const parts = spawns.map(({ zone, spawn }) => {
-      if (!ctx) {
-        return spawn ? `${zone} — ${spawn}` : zone;
-      }
-      const { enMap, ruMap } = ctx;
-      if (locale === 'ru') {
-        const t = translateZoneSpawn(enMap, ruMap, zone, spawn);
-        return t.spawn ? `${t.zone} — ${t.spawn}` : t.zone;
-      }
-      return spawn ? `${zone} — ${spawn}` : zone;
-    });
-    lines.push(`${waveLinePrefix(waveIdx)} ${parts.join('; ')}`);
-    waveIdx += 1;
   }
 
-  if (lines.length === 0) {
-    return locale === 'ru' ? '_(нет данных о волнах)_' : '_(no wave data)_';
+  /** @type {string[]} */
+  const lines = [];
+  for (let w = 1; w <= TOTAL_WAVES; w += 1) {
+    const row = byWave.get(w);
+    if (row) {
+      lines.push(formatOneWaveLine(ctx, locale, w, row));
+    } else {
+      lines.push(
+        wrapThirdWaveBold(
+          w,
+          `${waveLinePrefix(w - 1)} ${locale === 'ru' ? '_(нет данных)_' : '_(no data)_'}`,
+        ),
+      );
+    }
   }
-  return lines.join('\n');
+  return lines;
 }
 
 /**
  * @param {object|null} ctx
  * @param {'en' | 'ru'} locale
  * @param {string} weekCode
- * @param {unknown} wavesRaw
  * @param {string} missingCtxNote
  */
-function formatOneMapBlock(ctx, locale, weekCode, wavesRaw, missingCtxNote) {
+function buildMainContent(ctx, locale, weekCode, missingCtxNote) {
   const wc = String(weekCode ?? '').trim() || '?';
-  const headerWeek =
-    locale === 'ru' ? `**Неделя:** ${wc}` : `**Week:** ${wc}`;
+  const lines = [];
 
-  let meta = '';
+  if (locale === 'ru') {
+    lines.push(`# Неделя ${wc}`);
+  } else {
+    lines.push(`# Week ${wc}`);
+  }
+
   if (ctx) {
     const map = locale === 'ru' ? ctx.ruMap : ctx.enMap;
     const week = locale === 'ru' ? ctx.weekRu : ctx.weekEn;
-    const mapName = map?.name ?? '';
-    const modsLabel = locale === 'ru' ? '**Модификаторы недели:**' : '**Week modifiers:**';
-    const bonusLabel = locale === 'ru' ? '**Бонусные задачи:**' : '**Bonus objectives:**';
-    const mod1 = week?.mod1 ?? '';
-    const mod2 = week?.mod2 ?? '';
-    const obj = formatObjectivesLines(map);
-    const wavesHdr = locale === 'ru' ? '**Волны:**' : '**Waves:**';
-    meta = [
-      headerWeek,
-      mapName ? (locale === 'ru' ? `**Карта:** ${mapName}` : `**Map:** ${mapName}`) : '',
-      mod1 || mod2 ? `${modsLabel} ${[mod1, mod2].filter(Boolean).join(' · ')}` : '',
-      obj ? `${bonusLabel}\n${obj}` : '',
-      wavesHdr,
-      formatWavesSection(ctx, locale, wavesRaw, wc),
-    ]
-      .filter(Boolean)
-      .join('\n');
+    const mapName = String(map?.name ?? '').trim();
+    if (mapName) {
+      lines.push(`## ${mapName}`);
+    }
+    const mod1 = String(week?.mod1 ?? '').trim();
+    const mod2 = String(week?.mod2 ?? '').trim();
+    if (mod1) lines.push(`> ${mod1}`);
+    if (mod2) lines.push(`> ${mod2}`);
   } else {
-    const wavesHdr = locale === 'ru' ? '**Волны:**' : '**Waves:**';
-    meta = [headerWeek, missingCtxNote, wavesHdr, formatWavesSection(null, locale, wavesRaw, wc)]
-      .filter(Boolean)
-      .join('\n');
+    lines.push(missingCtxNote);
   }
 
-  return meta;
+  return lines.join('\n');
 }
 
-/**
- * @param {string} text
- * @param {number} max
- * @returns {string[]}
- */
-function chunkByLength(text, max) {
-  if (text.length <= max) return [text];
-  const parts = [];
-  let rest = text;
-  while (rest.length > max) {
-    let cut = rest.lastIndexOf('\n', max);
-    if (cut < max * 0.5) cut = max;
-    parts.push(rest.slice(0, cut).trimEnd());
-    rest = rest.slice(cut).trimStart();
-  }
-  if (rest) parts.push(rest);
-  return parts;
-}
+/** Лимит текста footer в Discord. */
+const EMBED_FOOTER_TEXT_MAX = 2048;
 
 /**
  * @param {object|null} ctx
  * @param {'en' | 'ru'} locale
- * @param {string} weekCode
  * @param {unknown} wavesRaw
- * @param {string} missingCtxNote
+ * @param {string} [creditFooter]
+ * @returns {EmbedBuilder[]}
  */
-function formatOneMapChunked(ctx, locale, weekCode, wavesRaw, missingCtxNote) {
-  const full = formatOneMapBlock(ctx, locale, weekCode, wavesRaw, missingCtxNote);
-  if (full.length <= DISCORD_CHUNK_MAX) return [full];
-  return chunkByLength(full, DISCORD_CHUNK_MAX);
+function buildWaveEmbedGroups(ctx, locale, wavesRaw, creditFooter) {
+  const fifteen = buildFifteenWaveLines(ctx, locale, wavesRaw);
+  /** @type {EmbedBuilder[]} */
+  const embeds = [];
+  for (let g = 0; g < EMBED_GROUP_COUNT; g += 1) {
+    const slice = fifteen.slice(g * WAVES_PER_EMBED, (g + 1) * WAVES_PER_EMBED);
+    const description = slice.join(WAVE_BLOCK_SEPARATOR).slice(0, 4096);
+    embeds.push(
+      new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setDescription(description || '—'),
+    );
+  }
+
+  const credit = String(creditFooter ?? '').trim();
+  if (credit && embeds.length > 0) {
+    const footerText =
+      credit.length > EMBED_FOOTER_TEXT_MAX
+        ? `${credit.slice(0, EMBED_FOOTER_TEXT_MAX - 1)}…`
+        : credit;
+    embeds[embeds.length - 1].setFooter({ text: footerText });
+  }
+
+  return embeds;
 }
 
 /**
  * @param {unknown} apiJson — тело GET /api/rotation/tsushima
  * @param {{ locale?: 'en' | 'ru' }} [options]
- * @returns {string[]}
+ * @returns {Array<{ content: string, embeds: EmbedBuilder[] }>}
  */
-export function formatTsushimaRotationChunks(apiJson, options = {}) {
+export function formatTsushimaRotationEmbedPayloads(apiJson, options = {}) {
   const locale = options.locale === 'en' ? 'en' : 'ru';
   const { en, ru } = loadRotations();
   const missingCtxNote =
@@ -188,30 +235,49 @@ export function formatTsushimaRotationChunks(apiJson, options = {}) {
       : '⚠️ Week not found in `json/rotation_tsushima_*.json` — refresh files or check `week_code`.';
 
   if (!apiJson || typeof apiJson !== 'object') {
-    return [locale === 'ru' ? 'Пустой ответ API.' : 'Empty API response.'];
+    return [{ content: locale === 'ru' ? 'Пустой ответ API.' : 'Empty API response.', embeds: [] }];
   }
 
   const maps = /** @type {{ maps?: unknown }} */ (apiJson).maps;
   if (!Array.isArray(maps) || maps.length === 0) {
-    return [locale === 'ru' ? 'На сайте нет ротации Tsushima на текущую неделю (`maps` пустой).' : 'No Tsushima rotation for the current site week (empty `maps`).'];
+    return [
+      {
+        content:
+          locale === 'ru'
+            ? 'На сайте нет ротации Tsushima на текущую неделю (`maps` пустой).'
+            : 'No Tsushima rotation for the current site week (empty `maps`).',
+        embeds: [],
+      },
+    ];
   }
 
-  /** @type {string[]} */
+  /** @type {Array<{ content: string, embeds: EmbedBuilder[] }>} */
   const out = [];
   for (const m of maps) {
     if (!m || typeof m !== 'object') continue;
     const row = /** @type {Record<string, unknown>} */ (m);
     const weekCode = String(row.week_code ?? '').trim();
     const waves = row.waves;
+    const creditText =
+      row.credit_text != null && typeof row.credit_text === 'string'
+        ? row.credit_text
+        : row.credit_text != null
+          ? String(row.credit_text)
+          : '';
     const ctx = weekCode ? findWeekContext(en, ru, weekCode) : null;
-    const blocks = formatOneMapChunked(ctx, locale, weekCode, waves, missingCtxNote);
-    for (const b of blocks) out.push(b);
+    const content = buildMainContent(ctx, locale, weekCode, missingCtxNote);
+    const embeds = buildWaveEmbedGroups(ctx, locale, waves, creditText);
+    const contentTrimmed = content.length > 2000 ? `${content.slice(0, 1998)}…` : content;
+    out.push({ content: contentTrimmed, embeds });
   }
 
   if (out.length === 0) {
-    return [locale === 'ru' ? 'Нет ни одной карты в ответе.' : 'No maps in response.'];
+    return [
+      {
+        content: locale === 'ru' ? 'Нет ни одной карты в ответе.' : 'No maps in response.',
+        embeds: [],
+      },
+    ];
   }
   return out;
 }
-
-export { DISCORD_CHUNK_MAX };
