@@ -3,7 +3,7 @@ import { t } from '../i18n/strings.js';
 import { fetchTsushimaRotationRead } from '../api/nightmare-tsushima.js';
 import { fetchYoteiRotationRead } from '../api/nightmare-yotei.js';
 import { formatTsushimaRotationEmbedPayloads } from '../utils/tsushima-waves-format.js';
-import { formatYoteiRotationChunks } from '../utils/yotei-waves-format.js';
+import { formatYoteiRotationEmbedPayloads } from '../utils/yotei-waves-format.js';
 
 /**
  * /waves в ЛС или в текстовом канале гильдии; прочие контексты — эфемерное предупреждение (текст на англ.).
@@ -27,24 +27,6 @@ async function ensureWavesChannel(interaction) {
 function wavesLang(interaction) {
   const raw = interaction.options.getString('lang', true);
   return raw === 'ru' ? 'ru' : 'en';
-}
-
-/**
- * @param {import('discord.js').ChatInputCommandInteraction} interaction
- * @param {string[]} chunks
- */
-async function replyWithChunks(interaction, chunks) {
-  const [first, ...rest] = chunks;
-  await interaction.editReply({
-    content: first,
-    allowedMentions: { parse: [] },
-  });
-  for (const part of rest) {
-    await interaction.followUp({
-      content: part,
-      allowedMentions: { parse: [] },
-    });
-  }
 }
 
 /**
@@ -100,8 +82,8 @@ export async function handleWavesCommand(interaction) {
         return;
       }
 
-      const chunks = formatYoteiRotationChunks(data, { locale: lang });
-      await replyWithChunks(interaction, chunks);
+      const payloads = formatYoteiRotationEmbedPayloads(data, { locale: lang });
+      await replyWithEmbedPayloads(interaction, payloads);
     } catch (e) {
       const isTimeout =
         e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');

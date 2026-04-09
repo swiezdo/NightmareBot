@@ -2,35 +2,15 @@ import { EmbedBuilder } from 'discord.js';
 import { loadRotations, findWeekContext, translateZoneSpawn } from '../data/rotation.js';
 import { t } from '../i18n/strings.js';
 import { TOTAL_WAVES } from '../wizard/constants.js';
+import {
+  WAVE_BLOCK_SEPARATOR,
+  formatWaveBlockFromCellLines,
+  finalizeDiscordMessageContent,
+} from './wave-embed-lines.js';
 
 const WAVES_PER_EMBED = 3;
 const EMBED_GROUP_COUNT = Math.ceil(TOTAL_WAVES / WAVES_PER_EMBED);
 const EMBED_COLOR = 0x5865f2;
-/** Отступ для 2-й и 3-й ячейки волны (под первой строкой с номером). */
-const WAVE_SLOT_INDENT = '    ';
-/** Разделитель между волнами в описании эмбеда (с переводами строк). */
-const WAVE_BLOCK_SEPARATOR = `\n${'\u2500'.repeat(16)}\n`;
-
-/** Доп. отступ для 2-й и далее строк при двузначном номере (шире «N.»). У 11-й — на 1 пробел меньше. */
-const WIDE_WAVE_CONT_EXTRA = '   ';
-
-function waveContinuationExtraIndent(waveNum) {
-  if (waveNum < 10) return '';
-  if (waveNum === 11) return WIDE_WAVE_CONT_EXTRA.slice(1);
-  return WIDE_WAVE_CONT_EXTRA;
-}
-
-/** +1 пробел к отступу продолжений: однозначные 2–6 и 8–9 (не 1 и не 7 — визуально совпадают с базовым отступом). */
-function singleDigitWaveContinuationPad(waveNum) {
-  if (waveNum < 2 || waveNum > 9) return '';
-  if (waveNum === 7) return '';
-  return ' ';
-}
-
-/** Номер волны в Discord markdown (жирный): `**1.**` */
-function boldWavePrefix(waveNum) {
-  return `**${waveNum}.**`;
-}
 
 /**
  * @param {unknown} spawnsRaw
@@ -109,18 +89,8 @@ function formatSpawnLabel(ctx, locale, zone, spawn) {
  * @param {{ spawns: ReturnType<typeof normalizeWaveSpawns> }} row
  */
 function formatOneWaveLine(ctx, locale, waveNum, row) {
-  const spawns = row.spawns;
-  if (spawns.length === 0) {
-    return `${boldWavePrefix(waveNum)} ${t(locale, 'tsushima_wave_no_spawns')}`;
-  }
-  const parts = spawns.map(({ zone, spawn }) => formatSpawnLabel(ctx, locale, zone, spawn));
-  const contExtra = `${singleDigitWaveContinuationPad(waveNum)}${waveContinuationExtraIndent(waveNum)}`;
-  const first = `${boldWavePrefix(waveNum)} ${parts[0]}`;
-  const rest = parts
-    .slice(1)
-    .map((p) => `${WAVE_SLOT_INDENT}${contExtra}${p}`)
-    .join('\n');
-  return rest ? `${first}\n${rest}` : first;
+  const parts = row.spawns.map(({ zone, spawn }) => formatSpawnLabel(ctx, locale, zone, spawn));
+  return formatWaveBlockFromCellLines(waveNum, parts, t(locale, 'tsushima_wave_no_spawns'));
 }
 
 /**
@@ -146,14 +116,11 @@ function buildFifteenWaveLines(ctx, locale, wavesRaw) {
     if (row) {
       lines.push(formatOneWaveLine(ctx, locale, w, row));
     } else {
-      lines.push(`${boldWavePrefix(w)} ${t(locale, 'tsushima_wave_no_data')}`);
+      lines.push(formatWaveBlockFromCellLines(w, [], t(locale, 'tsushima_wave_no_data')));
     }
   }
   return lines;
 }
-
-/** Лимит текста сообщения Discord (content). */
-const MESSAGE_CONTENT_MAX = 2000;
 
 /**
  * @param {object|null} ctx
@@ -187,25 +154,7 @@ function buildMainContent(ctx, locale, weekCode, missingCtxNote, creditText) {
 
   const body = lines.join('\n');
   const credit = String(creditText ?? '').trim();
-  if (ctx && credit) {
-    let creditLine = `*${credit}*`;
-    if (creditLine.length > MESSAGE_CONTENT_MAX) {
-      const innerMax = MESSAGE_CONTENT_MAX - 3;
-      creditLine = `*${credit.slice(0, Math.max(0, innerMax - 1))}…*`;
-    }
-    const sepLen = 2;
-    const maxBody = MESSAGE_CONTENT_MAX - sepLen - creditLine.length;
-    if (maxBody < 0) {
-      return creditLine.slice(0, MESSAGE_CONTENT_MAX);
-    }
-    const trimmedBody =
-      body.length > maxBody ? `${body.slice(0, Math.max(0, maxBody - 1))}…` : body;
-    return `${trimmedBody}\n\n${creditLine}`;
-  }
-
-  return body.length > MESSAGE_CONTENT_MAX
-    ? `${body.slice(0, MESSAGE_CONTENT_MAX - 1)}…`
-    : body;
+  return finalizeDiscordMessageContent(body, ctx && credit ? credit : '');
 }
 
 /** Лимит текста footer в Discord. */

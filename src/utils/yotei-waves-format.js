@@ -1,29 +1,20 @@
-/** Запас под лимит Discord 2000. */
-const DISCORD_CHUNK_MAX = 1900;
+import { EmbedBuilder } from 'discord.js';
+import { t } from '../i18n/strings.js';
+import {
+  WAVE_BLOCK_SEPARATOR,
+  formatWaveBlockFromCellLines,
+  finalizeDiscordMessageContent,
+} from './wave-embed-lines.js';
+
+const EMBED_COLOR = 0x5865f2;
+const STAGE_COUNT = 4;
 
 /**
- * @param {string} text
- * @param {number} max
- * @returns {string[]}
+ * @param {unknown} spawn
+ * @param {'en' | 'ru'} locale
+ * @returns {string}
  */
-function chunkByLength(text, max) {
-  if (text.length <= max) return [text];
-  const parts = [];
-  let rest = text;
-  while (rest.length > max) {
-    let cut = rest.lastIndexOf('\n', max);
-    if (cut < max * 0.5) cut = max;
-    parts.push(rest.slice(0, cut).trimEnd());
-    rest = rest.slice(cut).trimStart();
-  }
-  if (rest) parts.push(rest);
-  return parts;
-}
-
-/**
- * @param {unknown} spawnsRaw
- */
-function formatSpawnLine(spawn, locale) {
+function yoteiSpawnCellLine(spawn, locale) {
   if (!spawn || typeof spawn !== 'object') return '';
   const o = /** @type {Record<string, unknown>} */ (spawn);
   const loc = String(o.location ?? '').trim();
@@ -42,117 +33,172 @@ function formatSpawnLine(spawn, locale) {
 
 /**
  * @param {unknown} round
- * @param {'en' | 'ru'} locale
+ * @returns {string}
  */
-function formatRoundBlock(round, locale) {
+function challengeCardFromRound(round) {
   if (!round || typeof round !== 'object') return '';
-  const r = /** @type {Record<string, unknown>} */ (round);
-  const roundNum = typeof r.round === 'number' ? r.round : '?';
-  const hdr =
-    locale === 'ru' ? `**Этап ${roundNum}**` : `**Round ${roundNum}**`;
-  const lines = [hdr];
-
-  const ch = r.challenge;
-  if (ch && typeof ch === 'object') {
-    const c = /** @type {Record<string, unknown>} */ (ch);
-    const name = String(c.name ?? '').trim();
-    const desc = String(c.description ?? '').trim();
-    const lab = locale === 'ru' ? '**Испытание:**' : '**Challenge:**';
-    if (name) lines.push(`${lab} ${name}`);
-    if (desc) lines.push(desc);
+  const o = /** @type {Record<string, unknown>} */ (round);
+  const direct = o.challenge_card ?? o.challengeCard;
+  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+  if (direct && typeof direct === 'object') {
+    const nm = String(/** @type {Record<string, unknown>} */ (direct).name ?? '').trim();
+    if (nm) return nm;
   }
+  const ch = o.challenge;
+  if (ch && typeof ch === 'object') {
+    const nm = String(/** @type {Record<string, unknown>} */ (ch).name ?? '').trim();
+    if (nm) return nm;
+  }
+  return '';
+}
 
-  const waves = Array.isArray(r.waves) ? r.waves : [];
-  const sorted = [...waves].sort((a, b) => {
-    const wa = a && typeof a === 'object' && typeof /** @type {{ wave?: number }} */ (a).wave === 'number' ? /** @type {{ wave?: number }} */ (a).wave : 0;
-    const wb = b && typeof b === 'object' && typeof /** @type {{ wave?: number }} */ (b).wave === 'number' ? /** @type {{ wave?: number }} */ (b).wave : 0;
-    return wa - wb;
-  });
+/**
+ * @param {unknown} r
+ * @returns {number | null}
+ */
+function roundNumber(r) {
+  if (!r || typeof r !== 'object') return null;
+  const n = Number(/** @type {Record<string, unknown>} */ (r).round);
+  return Number.isFinite(n) ? n : null;
+}
 
+/**
+ * Слоты 1–4 по полю `round`.
+ *
+ * @param {unknown} roundsRaw
+ * @returns {(object | null)[]}
+ */
+function roundsFourSlots(roundsRaw) {
+  /** @type {(object | null)[]} */
+  const slots = [null, null, null, null];
+  const rounds = Array.isArray(roundsRaw) ? roundsRaw : [];
+  for (const r of rounds) {
+    if (!r || typeof r !== 'object') continue;
+    const n = roundNumber(r);
+    if (n != null && n >= 1 && n <= STAGE_COUNT) slots[n - 1] = r;
+  }
+  return slots;
+}
+
+/**
+ * @param {object} round
+ * @param {'en' | 'ru'} locale
+ * @returns {string[]}
+ */
+function waveLineBlocksForRound(round, locale) {
+  const ro = /** @type {Record<string, unknown>} */ (round);
+  const waves = Array.isArray(ro.waves) ? [...ro.waves] : [];
+  const sorted = waves
+    .filter((w) => w && typeof w === 'object')
+    .sort((a, b) => {
+      const wa = Number(/** @type {Record<string, unknown>} */ (a).wave);
+      const wb = Number(/** @type {Record<string, unknown>} */ (b).wave);
+      const na = Number.isFinite(wa) ? wa : 0;
+      const nb = Number.isFinite(wb) ? wb : 0;
+      return na - nb;
+    });
+
+  /** @type {string[]} */
+  const blocks = [];
+  let display = 1;
   for (const w of sorted) {
-    if (!w || typeof w !== 'object') continue;
     const wo = /** @type {Record<string, unknown>} */ (w);
-    const wn = typeof wo.wave === 'number' ? wo.wave : '?';
-    const wlab = locale === 'ru' ? `**Волна ${wn}**` : `**Wave ${wn}**`;
-    lines.push(wlab);
     const spawns = Array.isArray(wo.spawns) ? [...wo.spawns] : [];
     spawns.sort((a, b) => {
       const oa = a && typeof a === 'object' && /** @type {{ order?: number }} */ (a).order;
       const ob = b && typeof b === 'object' && /** @type {{ order?: number }} */ (b).order;
       return (typeof oa === 'number' ? oa : 0) - (typeof ob === 'number' ? ob : 0);
     });
-    for (const s of spawns) {
-      const line = formatSpawnLine(s, locale);
-      if (line) lines.push(`• ${line}`);
-    }
+    const cellLines = spawns.map((s) => yoteiSpawnCellLine(s, locale)).filter(Boolean);
+    blocks.push(
+      formatWaveBlockFromCellLines(display, cellLines, t(locale, 'tsushima_wave_no_spawns')),
+    );
+    display += 1;
   }
-
-  return lines.filter(Boolean).join('\n');
+  return blocks;
 }
 
 /**
- * @param {unknown} mapRow
+ * @param {Record<string, unknown>} mapRow
  * @param {'en' | 'ru'} locale
+ * @param {string} creditText
  */
-function formatMapBlock(mapRow, locale) {
-  if (!mapRow || typeof mapRow !== 'object') return '';
-  const m = /** @type {Record<string, unknown>} */ (mapRow);
-  const name = String(m.name ?? '').trim() || '?';
-  const mapHdr = locale === 'ru' ? `**Карта:** ${name}` : `**Map:** ${name}`;
-  const lines = [mapHdr];
+function buildYoteiMainContent(mapRow, locale, creditText) {
+  const name = String(mapRow.name ?? '').trim() || '?';
+  const lines = [
+    `# ${name}`,
+    `## ${t(locale, 'yotei_challenge_cards_header')}`,
+  ];
 
-  const credits = m.credit_text != null ? String(m.credit_text).trim() : '';
-  if (credits) {
-    const cl = locale === 'ru' ? '**Благодарности:**' : '**Credits:**';
-    lines.push(`${cl} ${credits}`);
+  const slots = roundsFourSlots(mapRow.rounds);
+  const dash = t(locale, 'yotei_stage_no_data');
+  for (let i = 0; i < STAGE_COUNT; i += 1) {
+    const card = slots[i] ? challengeCardFromRound(slots[i]) : '';
+    lines.push(`> ${i + 1}. ${card || dash}`);
   }
 
-  const rounds = Array.isArray(m.rounds) ? m.rounds : [];
-  for (const rd of rounds) {
-    const block = formatRoundBlock(rd, locale);
-    if (block) lines.push(block);
-  }
-
-  return lines.join('\n\n');
+  return finalizeDiscordMessageContent(lines.join('\n'), creditText);
 }
 
 /**
  * @param {unknown} apiJson
  * @param {{ locale?: 'en' | 'ru' }} [options]
- * @returns {string[]}
+ * @returns {Array<{ content: string, embeds: EmbedBuilder[] }>}
  */
-export function formatYoteiRotationChunks(apiJson, options = {}) {
+export function formatYoteiRotationEmbedPayloads(apiJson, options = {}) {
   const locale = options.locale === 'en' ? 'en' : 'ru';
 
   if (!apiJson || typeof apiJson !== 'object') {
-    return [locale === 'ru' ? 'Пустой ответ API.' : 'Empty API response.'];
+    return [{ content: t(locale, 'yotei_format_empty_api'), embeds: [] }];
   }
 
   const maps = /** @type {{ maps?: unknown }} */ (apiJson).maps;
   if (!Array.isArray(maps) || maps.length === 0) {
-    return [
-      locale === 'ru'
-        ? 'Нет карт с ротацией Yōtei на текущую неделю.'
-        : 'No Yōtei maps with rotation for the current week.',
-    ];
+    return [{ content: t(locale, 'yotei_format_empty_maps'), embeds: [] }];
   }
 
-  /** @type {string[]} */
+  /** @type {Array<{ content: string, embeds: EmbedBuilder[] }>} */
   const out = [];
+
   for (const mapRow of maps) {
-    const block = formatMapBlock(mapRow, locale);
-    if (!block) continue;
-    if (block.length <= DISCORD_CHUNK_MAX) {
-      out.push(block);
-    } else {
-      out.push(...chunkByLength(block, DISCORD_CHUNK_MAX));
+    if (!mapRow || typeof mapRow !== 'object') continue;
+    const m = /** @type {Record<string, unknown>} */ (mapRow);
+    const creditText =
+      m.credit_text != null && typeof m.credit_text === 'string'
+        ? m.credit_text
+        : m.credit_text != null
+          ? String(m.credit_text)
+          : '';
+
+    const content = buildYoteiMainContent(m, locale, creditText);
+    const slots = roundsFourSlots(m.rounds);
+
+    /** @type {EmbedBuilder[]} */
+    const embeds = [];
+    for (let stage = 1; stage <= STAGE_COUNT; stage += 1) {
+      const round = slots[stage - 1];
+      const title = t(locale, 'yotei_stage_title').replace('{n}', String(stage));
+
+      let description = t(locale, 'yotei_stage_no_data');
+      if (round && typeof round === 'object') {
+        const blocks = waveLineBlocksForRound(round, locale);
+        description = blocks.length > 0 ? blocks.join(WAVE_BLOCK_SEPARATOR) : t(locale, 'yotei_stage_no_data');
+      }
+
+      embeds.push(
+        new EmbedBuilder()
+          .setColor(EMBED_COLOR)
+          .setTitle(title)
+          .setDescription(description.slice(0, 4096) || '—'),
+      );
     }
+
+    out.push({ content, embeds });
   }
 
   if (out.length === 0) {
-    return [locale === 'ru' ? 'Не удалось сформировать текст.' : 'Could not format rotation text.'];
+    return [{ content: t(locale, 'yotei_format_no_maps_in_response'), embeds: [] }];
   }
+
   return out;
 }
-
-export { DISCORD_CHUNK_MAX };

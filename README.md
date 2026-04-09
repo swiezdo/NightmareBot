@@ -2,7 +2,7 @@
 
 Discord DM wizard: build and edit Tsushima waves via `/setup-waves` and `/edit-waves` (same `game` option, DM only). Command **`/waves`** is **public** (no allowlist): **`game`** (Tsushima / Yōtei) and **`lang`** (English / Russian). Use in a **guild channel or DMs**. **Tsushima**: **`GET /api/rotation/tsushima`** + **`NIGHTMARE_CLUB_TSUSHIMA_TOKEN`**; optional **`NIGHTMARE_CLUB_TSUSHIMA_READ_URL`**. **Yōtei**: **`GET /api/rotation/yotei`** + **`NIGHTMARE_CLUB_YOTEI_TOKEN`** (same as `BOT_API_TOKEN_YOTEI` on the site); optional **`NIGHTMARE_CLUB_YOTEI_READ_URL`** or derive from **`NIGHTMARE_CLUB_YOTEI_URL`** (`…/api/rotations/yotei` → `…/api/rotation/yotei`); default read URL `https://nightmare.club/api/rotation/yotei`. Tsushima map/modifier/bonus text uses local **`json/rotation_tsushima_*.json`**; Yōtei text comes from the API (English from DB in v1).
 
-When the grid is complete and the user presses **Done**, a **modal** asks for **Credits** (optional; UI strings follow the wizard language). If the field is left empty, **`Submitted by NightmareBot`** is sent as `credit_text`. Then the bot sends the JSON body to **Nightmare.Club** (`PUT /api/rotations/tsushima`) with `NIGHTMARE_CLUB_TSUSHIMA_URL` and `NIGHTMARE_CLUB_TSUSHIMA_TOKEN`. **`/edit-waves`** (Tsushima only) loads the current site week via **`GET /api/rotation/tsushima`** with the same token, merges `week_code` + `waves` + `map_slug` + `credit_text` from the API with local **`json/rotation_tsushima_*.json`** (mods/objectives/RU cells), and opens the wizard prefilled — no published draft is stored in SQLite.
+When the grid is complete and the user presses **Done**, a **modal** asks for **Credits** (optional; UI strings follow the wizard language). If the field is left empty, **`Submitted by NightmareBot`** is sent as `credit_text`. Then the bot sends the JSON body to **Nightmare.Club** (`PUT /api/rotations/tsushima`) with `NIGHTMARE_CLUB_TSUSHIMA_URL` and `NIGHTMARE_CLUB_TSUSHIMA_TOKEN`. **`/edit-waves`** (Tsushima only) loads the current site week via **`GET /api/rotation/tsushima`** with the same token, merges `week_code` + `waves` + `map_slug` + `credit_text` from the API with local **`json/rotation_tsushima_*.json`** (mods/objectives/RU cells), and opens the wizard prefilled — no published draft is stored in SQLite. **`/waves` Yōtei** renders API data as one **content** message (map name, four challenge-card lines, optional credits) plus **four embeds** (Stage 1–4); **`/waves` Tsushima** uses local rotation JSON plus wave embeds.
 
 ## Requirements
 
@@ -53,7 +53,8 @@ The bot process and sqlite-web both open the same SQLite file; avoid heavy write
 | `src/db/session.js` | Session load/save/delete |
 | `src/api/nightmare-tsushima.js` | `PUT` payload, `GET` Tsushima, draft build for `/edit-waves` and `/waves` |
 | `src/api/nightmare-yotei.js` | `GET` Yōtei rotation for `/waves` |
-| `src/utils/tsushima-waves-format.js` | Tsushima API + local JSON → Discord chunks |
-| `src/utils/yotei-waves-format.js` | Yōtei API → Discord chunks |
+| `src/utils/wave-embed-lines.js` | Общая разметка волн (отступы, разделитель) для Tsushima и Yōtei |
+| `src/utils/tsushima-waves-format.js` | Tsushima API + local JSON → сообщение + эмбеды волн |
+| `src/utils/yotei-waves-format.js` | Yōtei API → сообщение (карта + 4 карточки) + 4 эмбеда по этапам |
 | `src/handlers/waves-command.js` | Slash `/waves` (guild or DM, no allowlist) |
 | `json/rotation_tsushima_*.json` | Rotation source data (week codes, RU cells, objectives) |

@@ -92,6 +92,12 @@ export const strings = {
     tsushima_wave_no_spawns: '_(no spawns)_',
     tsushima_wave_no_data: '_(no data)_',
     tsushima_footer_wave: 'Wave {wave}',
+    yotei_challenge_cards_header: 'Challenge cards',
+    yotei_stage_title: 'Stage {n}',
+    yotei_stage_no_data: '—',
+    yotei_format_empty_api: 'Empty API response.',
+    yotei_format_empty_maps: 'No Yōtei maps with rotation for the current week.',
+    yotei_format_no_maps_in_response: 'No maps in response.',
   },
   ru: {
     choose_language_line: 'Choose your language / Выбери свой язык',
@@ -185,6 +191,12 @@ export const strings = {
     tsushima_wave_no_spawns: '_(нет спавнов)_',
     tsushima_wave_no_data: '_(нет данных)_',
     tsushima_footer_wave: 'Волна {wave}',
+    yotei_challenge_cards_header: 'Карточки испытаний',
+    yotei_stage_title: 'Этап {n}',
+    yotei_stage_no_data: '—',
+    yotei_format_empty_api: 'Пустой ответ API.',
+    yotei_format_empty_maps: 'Нет карт с ротацией Yōtei на текущую неделю.',
+    yotei_format_no_maps_in_response: 'Нет ни одной карты в ответе.',
   },
 };
 
