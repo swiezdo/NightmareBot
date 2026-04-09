@@ -85,7 +85,8 @@ const DEFAULT_TSUSHIMA_READ_URL = 'https://nightmare.club/api/rotation/tsushima'
 
 /**
  * URL для GET текущей ротации (read-only). Переопределение: NIGHTMARE_CLUB_TSUSHIMA_READ_URL;
- * иначе из NIGHTMARE_CLUB_TSUSHIMA_URL: …/api/rotations/tsushima → …/api/rotation/tsushima.
+ * иначе из NIGHTMARE_CLUB_TSUSHIMA_URL: …/api/rotations/tsushima → …/api/rotation/tsushima;
+ * иначе дефолтный хост публичного сайта.
  */
 export function getTsushimaRotationReadUrl() {
   const explicit = process.env.NIGHTMARE_CLUB_TSUSHIMA_READ_URL?.trim();
@@ -96,6 +97,26 @@ export function getTsushimaRotationReadUrl() {
     if (derived !== putUrl) return derived.replace(/\/$/, '');
   }
   return DEFAULT_TSUSHIMA_READ_URL;
+}
+
+/**
+ * URL для PUT публикации (`/api/rotations/tsushima` в [nightmare-club](https://github.com/machr/nightmare-club)).
+ * Явный NIGHTMARE_CLUB_TSUSHIMA_URL;
+ * иначе из эффективного read URL: …/api/rotation/tsushima → …/api/rotations/tsushima
+ * (удобно, если задан только NIGHTMARE_CLUB_TSUSHIMA_READ_URL + токен);
+ * при только токене без URL — read идёт на дефолтный `…/api/rotation/tsushima`, PUT выводится в `…/api/rotations/tsushima`.
+ *
+ * @returns {string} пустая строка, если URL вывести нельзя (нестандартный read path — задайте **NIGHTMARE_CLUB_TSUSHIMA_URL** явно)
+ */
+export function getTsushimaRotationPutUrl() {
+  const explicitPut = process.env.NIGHTMARE_CLUB_TSUSHIMA_URL?.trim();
+  if (explicitPut) return explicitPut.replace(/\/$/, '');
+
+  const readUrl = getTsushimaRotationReadUrl();
+  const derived = readUrl.replace(/\/api\/rotation\/tsushima\/?$/i, '/api/rotations/tsushima');
+  if (derived !== readUrl) return derived.replace(/\/$/, '');
+
+  return '';
 }
 
 /**

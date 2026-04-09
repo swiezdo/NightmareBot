@@ -17,7 +17,7 @@ export const strings = {
     saved_success: 'Saved to the bot database (SQLite).',
     saved_success_api: 'Published to Nightmare.Club.',
     api_not_configured:
-      'Nightmare.Club API is not configured. Set **NIGHTMARE_CLUB_TSUSHIMA_URL** and **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** in `.env` (same token as `BOT_API_TOKEN_TSUSHIMA` on the site).',
+      'Nightmare.Club Tsushima is not configured. Set **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** in `.env` (same as `BOT_API_TOKEN_TSUSHIMA` on the site). If you use a custom site, set **NIGHTMARE_CLUB_TSUSHIMA_READ_URL** ending with `/api/rotation/tsushima`, or set **NIGHTMARE_CLUB_TSUSHIMA_URL** to the full `PUT …/api/rotations/tsushima` URL.',
     api_payload_error: 'Internal error building the API payload. Check logs.',
     api_network_error: 'Network error while calling Nightmare.Club. Try again later.',
     api_publish_failed_prefix: 'Nightmare.Club rejected the publish:',
@@ -110,7 +110,7 @@ export const strings = {
     saved_success: 'Сохранено в базу бота (SQLite).',
     saved_success_api: 'Опубликовано в Nightmare.Club.',
     api_not_configured:
-      'API Nightmare.Club не настроено. Задайте **NIGHTMARE_CLUB_TSUSHIMA_URL** и **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** в `.env` (тот же токен, что `BOT_API_TOKEN_TSUSHIMA` на сайте).',
+      'Tsushima API Nightmare.Club не настроено. Укажите **NIGHTMARE_CLUB_TSUSHIMA_TOKEN** в `.env` (как `BOT_API_TOKEN_TSUSHIMA` на сайте). Для своего домена задайте **NIGHTMARE_CLUB_TSUSHIMA_READ_URL** с путём `…/api/rotation/tsushima` или явно **NIGHTMARE_CLUB_TSUSHIMA_URL** на полный `PUT …/api/rotations/tsushima`.',
     api_payload_error: 'Внутренняя ошибка сборки запроса к API. См. логи.',
     api_network_error: 'Сетевая ошибка при обращении к Nightmare.Club. Попробуйте позже.',
     api_publish_failed_prefix: 'Nightmare.Club отклонил публикацию:',

@@ -25,6 +25,7 @@ import {
   CREDIT_TEXT_MAX,
   DEFAULT_TSUSHIMA_CREDIT_TEXT,
   fetchTsushimaRotationRead,
+  getTsushimaRotationPutUrl,
   pushTsushimaToNightmare,
   summarizeNightmareApiFailure,
 } from '../api/nightmare-tsushima.js';
@@ -38,7 +39,7 @@ const DISCORD_CONTENT_MAX = 2000;
  * @param {'en' | 'ru'} loc
  */
 async function publishTsushimaAfterCredits(interaction, session, loc) {
-  const apiUrl = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_URL ?? '').trim();
+  const apiUrl = getTsushimaRotationPutUrl();
   const apiToken = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
 
   await interaction.deferReply();
@@ -832,7 +833,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       return;
     }
 
-    const apiUrl = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_URL ?? '').trim();
+    const apiUrl = getTsushimaRotationPutUrl();
     const apiToken = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
 
     if (!apiUrl || !apiToken) {
