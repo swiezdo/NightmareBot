@@ -20,6 +20,13 @@ function waveContinuationExtraIndent(waveNum) {
   return WIDE_WAVE_CONT_EXTRA;
 }
 
+/** +1 пробел к отступу продолжений: однозначные 2–6 и 8–9 (не 1 и не 7 — визуально совпадают с базовым отступом). */
+function singleDigitWaveContinuationPad(waveNum) {
+  if (waveNum < 2 || waveNum > 9) return '';
+  if (waveNum === 7) return '';
+  return ' ';
+}
+
 /** Номер волны в Discord markdown (жирный): `**1.**` */
 function boldWavePrefix(waveNum) {
   return `**${waveNum}.**`;
@@ -107,7 +114,7 @@ function formatOneWaveLine(ctx, locale, waveNum, row) {
     return `${boldWavePrefix(waveNum)} ${t(locale, 'tsushima_wave_no_spawns')}`;
   }
   const parts = spawns.map(({ zone, spawn }) => formatSpawnLabel(ctx, locale, zone, spawn));
-  const contExtra = waveContinuationExtraIndent(waveNum);
+  const contExtra = `${singleDigitWaveContinuationPad(waveNum)}${waveContinuationExtraIndent(waveNum)}`;
   const first = `${boldWavePrefix(waveNum)} ${parts[0]}`;
   const rest = parts
     .slice(1)
