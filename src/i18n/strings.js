@@ -83,6 +83,15 @@ export const strings = {
     waves_yotei_read_timeout: 'Yōtei API request timed out. Try again later.',
     waves_yotei_read_network: 'Network error while loading Yōtei rotation. Try again later.',
     waves_wrong_channel: 'Use `/waves` in a server text channel or in DMs with the bot.',
+    tsushima_format_missing_week_json:
+      '⚠️ Week not found in `json/rotation_tsushima_*.json` — refresh files or check `week_code`.',
+    tsushima_format_empty_api: 'Empty API response.',
+    tsushima_format_empty_maps:
+      'No Tsushima rotation for the current site week.',
+    tsushima_format_no_maps_in_response: 'No maps in response.',
+    tsushima_wave_no_spawns: '_(no spawns)_',
+    tsushima_wave_no_data: '_(no data)_',
+    tsushima_footer_wave: 'Wave {wave}',
   },
   ru: {
     choose_language_line: 'Choose your language / Выбери свой язык',
@@ -167,6 +176,15 @@ export const strings = {
     waves_yotei_read_timeout: 'Превышено время ожидания API Yōtei. Попробуйте позже.',
     waves_yotei_read_network: 'Сетевая ошибка при загрузке ротации Yōtei. Попробуйте позже.',
     waves_wrong_channel: 'Вызывайте `/waves` в текстовом канале сервера или в ЛС с ботом.',
+    tsushima_format_missing_week_json:
+      '⚠️ Неделя не найдена в `json/rotation_tsushima_*.json` — обновите файлы или проверьте `week_code`.',
+    tsushima_format_empty_api: 'Пустой ответ API.',
+    tsushima_format_empty_maps:
+      'На сайте нет ротации Tsushima на текущую неделю.',
+    tsushima_format_no_maps_in_response: 'Нет ни одной карты в ответе.',
+    tsushima_wave_no_spawns: '_(нет спавнов)_',
+    tsushima_wave_no_data: '_(нет данных)_',
+    tsushima_footer_wave: 'Волна {wave}',
   },
 };
 

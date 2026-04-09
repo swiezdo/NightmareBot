@@ -1,5 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 import { loadRotations, findWeekContext, translateZoneSpawn } from '../data/rotation.js';
+import { t } from '../i18n/strings.js';
 import { TOTAL_WAVES } from '../wizard/constants.js';
 
 const WAVES_PER_EMBED = 3;
@@ -103,7 +104,7 @@ function formatSpawnLabel(ctx, locale, zone, spawn) {
 function formatOneWaveLine(ctx, locale, waveNum, row) {
   const spawns = row.spawns;
   if (spawns.length === 0) {
-    return `${boldWavePrefix(waveNum)} ${locale === 'ru' ? '_(нет спавнов)_' : '_(no spawns)_'}`;
+    return `${boldWavePrefix(waveNum)} ${t(locale, 'tsushima_wave_no_spawns')}`;
   }
   const parts = spawns.map(({ zone, spawn }) => formatSpawnLabel(ctx, locale, zone, spawn));
   const contExtra = waveContinuationExtraIndent(waveNum);
@@ -138,9 +139,7 @@ function buildFifteenWaveLines(ctx, locale, wavesRaw) {
     if (row) {
       lines.push(formatOneWaveLine(ctx, locale, w, row));
     } else {
-      lines.push(
-        `${boldWavePrefix(w)} ${locale === 'ru' ? '_(нет данных)_' : '_(no data)_'}`,
-      );
+      lines.push(`${boldWavePrefix(w)} ${t(locale, 'tsushima_wave_no_data')}`);
     }
   }
   return lines;
@@ -160,11 +159,7 @@ function buildMainContent(ctx, locale, weekCode, missingCtxNote, creditText) {
   const wc = String(weekCode ?? '').trim() || '?';
   const lines = [];
 
-  if (locale === 'ru') {
-    lines.push(`# Неделя ${wc}`);
-  } else {
-    lines.push(`# Week ${wc}`);
-  }
+  lines.push(`# ${t(locale, 'week_code_label').replace('{code}', wc)}`);
 
   if (ctx) {
     const map = locale === 'ru' ? ctx.ruMap : ctx.enMap;
@@ -258,7 +253,7 @@ function buildWaveEmbedGroups(ctx, locale, wavesRaw) {
     const segmentFooterIconUrl = discordCustomEmojiToCdnUrl(mapModIconRaw);
 
     const footerWave = seg * WAVES_PER_EMBED;
-    const waveLabel = locale === 'ru' ? `Волна ${footerWave}` : `Wave ${footerWave}`;
+    const waveLabel = t(locale, 'tsushima_footer_wave').replace('{wave}', String(footerWave));
     let footerText = mapModName ? `${waveLabel} — ${mapModName}` : waveLabel;
     if (footerText.length > EMBED_FOOTER_TEXT_MAX) {
       footerText = `${footerText.slice(0, EMBED_FOOTER_TEXT_MAX - 1)}…`;
@@ -286,26 +281,15 @@ function buildWaveEmbedGroups(ctx, locale, wavesRaw) {
 export function formatTsushimaRotationEmbedPayloads(apiJson, options = {}) {
   const locale = options.locale === 'en' ? 'en' : 'ru';
   const { en, ru } = loadRotations();
-  const missingCtxNote =
-    locale === 'ru'
-      ? '⚠️ Неделя не найдена в `json/rotation_tsushima_*.json` — обновите файлы или проверьте `week_code`.'
-      : '⚠️ Week not found in `json/rotation_tsushima_*.json` — refresh files or check `week_code`.';
+  const missingCtxNote = t(locale, 'tsushima_format_missing_week_json');
 
   if (!apiJson || typeof apiJson !== 'object') {
-    return [{ content: locale === 'ru' ? 'Пустой ответ API.' : 'Empty API response.', embeds: [] }];
+    return [{ content: t(locale, 'tsushima_format_empty_api'), embeds: [] }];
   }
 
   const maps = /** @type {{ maps?: unknown }} */ (apiJson).maps;
   if (!Array.isArray(maps) || maps.length === 0) {
-    return [
-      {
-        content:
-          locale === 'ru'
-            ? 'На сайте нет ротации Tsushima на текущую неделю (`maps` пустой).'
-            : 'No Tsushima rotation for the current site week (empty `maps`).',
-        embeds: [],
-      },
-    ];
+    return [{ content: t(locale, 'tsushima_format_empty_maps'), embeds: [] }];
   }
 
   /** @type {Array<{ content: string, embeds: EmbedBuilder[] }>} */
@@ -328,12 +312,7 @@ export function formatTsushimaRotationEmbedPayloads(apiJson, options = {}) {
   }
 
   if (out.length === 0) {
-    return [
-      {
-        content: locale === 'ru' ? 'Нет ни одной карты в ответе.' : 'No maps in response.',
-        embeds: [],
-      },
-    ];
+    return [{ content: t(locale, 'tsushima_format_no_maps_in_response'), embeds: [] }];
   }
   return out;
 }
