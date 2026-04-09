@@ -161,18 +161,7 @@ function buildYoteiMainContent(mapRow, locale, creditText, labels) {
   const mapKey = mapDictionaryKey(mapRow);
   const apiMapTitle = String(mapRow.name ?? mapRow.title ?? '').trim() || mapKey;
   const title = resolveYoteiMapTitle(labels, mapKey, locale, apiMapTitle);
-  const lines = [`# ${title}`, `## ${t(locale, 'yotei_challenge_cards_header')}`];
-
-  const slots = roundsFourSlots(mapRow.rounds);
-  const dash = t(locale, 'yotei_stage_no_data');
-  for (let i = 0; i < STAGE_COUNT; i += 1) {
-    const slot = slots[i];
-    const { key, description, name } = challengeApiFieldsFromRound(slot);
-    const apiCardLine = (description || name).trim();
-    const card = slot ? resolveYoteiChallengeCard(labels, key, locale, apiCardLine) : '';
-    lines.push(`> ${i + 1}. ${card || dash}`);
-  }
-
+  const lines = [`# ${title}`];
   return finalizeDiscordMessageContent(lines.join('\n'), creditText);
 }
 
@@ -223,10 +212,14 @@ export function formatYoteiRotationEmbedPayloads(apiJson, options = {}) {
         description = blocks.length > 0 ? blocks.join(WAVE_BLOCK_SEPARATOR) : t(locale, 'yotei_stage_no_data');
       }
 
-      const { key: cardKey } =
+      const challengeFields =
+        round && typeof round === 'object' ? challengeApiFieldsFromRound(round) : { key: '', description: '', name: '' };
+      const { key: cardKey, description: chDesc, name: chName } = challengeFields;
+      const apiCardLine = (chDesc || chName).trim();
+      const cardLine =
         round && typeof round === 'object'
-          ? challengeApiFieldsFromRound(round)
-          : { key: '' };
+          ? resolveYoteiChallengeCard(labels, cardKey, locale, apiCardLine)
+          : '';
       const cardThumbUrl = cardKey ? resolveYoteiChallengeCardThumbnail(labels, cardKey) : null;
 
       const embed = new EmbedBuilder()
@@ -234,6 +227,8 @@ export function formatYoteiRotationEmbedPayloads(apiJson, options = {}) {
         .setTitle(title)
         .setDescription(description.slice(0, 4096) || '—');
       if (cardThumbUrl) embed.setThumbnail(cardThumbUrl);
+      const footer = cardLine.trim() ? cardLine.trim().slice(0, 2048) : '';
+      if (footer) embed.setFooter({ text: footer });
       embeds.push(embed);
     }
 

@@ -79,19 +79,24 @@
       "emoji": "<:cards_todo1:1491887227846922443>"
     },
     {
-      "slug": "НАДО ДОБАВИТЬ",
-      "line": "Максимальный запас здоровья значительно уменьшен",
-      "emoji": "<:cards_todo2:1491886504975273994>"
+      "slug": "max-health-significantly-reduced",
+      "line": "Max Health significantly Reduced",
+      "emoji": "<:cards_max_health_significantly_r:1491886504975273994>"
     },
     {
-      "slug": "НАДО ДОБАВИТЬ",
-      "line": "Оживление призраков занимает гораздо больше времени",
-      "emoji": "<:cards_todo3:1491886905950736554>"
+      "slug": "reviving-ghosts-much-longer",
+      "line": "Reviving Ghosts takes much longer",
+      "emoji": "<:cards_reviving_ghosts_much_longe:1491886905950736554>"
     },
     {
-      "slug": "НАДО ДОБАВИТЬ",
-      "line": "Восстановление орудий призраков занимает гораздо больше времени",
-      "emoji": "<:cards_todo4:1491887402094956636>"
+      "slug": "ghost-weapon-cooldowns-increased",
+      "line": "Ghost Weapon cooldowns are increased",
+      "emoji": "<:cards_ghost_weapon_cooldowns_inc:1491887402094956636>"
+    },
+    {
+      "slug": "unique-enemy-ambush",
+      "line": "Unique Enemy Ambush",
+      "emoji": "<:cards_unique_enemy_ambush:1491884779543465994>"
     }
   ]
 }
