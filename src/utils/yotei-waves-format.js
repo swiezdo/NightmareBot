@@ -1,4 +1,11 @@
 import { EmbedBuilder } from 'discord.js';
+import {
+  loadYoteiLabels,
+  resolveYoteiChallengeCard,
+  resolveYoteiChallengeCardThumbnail,
+  resolveYoteiMapTitle,
+  resolveYoteiZone,
+} from '../data/yotei-labels.js';
 import { t } from '../i18n/strings.js';
 import {
   WAVE_BLOCK_SEPARATOR,
@@ -10,46 +17,70 @@ const EMBED_COLOR = 0x5865f2;
 const STAGE_COUNT = 4;
 
 /**
- * @param {unknown} spawn
- * @param {'en' | 'ru'} locale
- * @returns {string}
+ * Ключ карты для словаря: Nightmare.Club отдаёт `slug`; опционально `map_slug`.
+ *
+ * @param {Record<string, unknown>} mapRow
  */
-function yoteiSpawnCellLine(spawn, locale) {
+function mapDictionaryKey(mapRow) {
+  return String(mapRow.map_slug ?? mapRow.slug ?? mapRow.name ?? '').trim();
+}
+
+/**
+ * @param {unknown} spawn
+ * @param {ReturnType<typeof import('../data/yotei-labels.js').loadYoteiLabels>} labels
+ * @param {'en' | 'ru'} locale
+ * @param {string} mapKey
+ */
+function yoteiSpawnCellLine(spawn, labels, locale, mapKey) {
   if (!spawn || typeof spawn !== 'object') return '';
   const o = /** @type {Record<string, unknown>} */ (spawn);
   const loc = String(o.location ?? '').trim();
   if (!loc) return '';
-  const pt = o.spawn_point != null ? String(o.spawn_point).trim() : '';
+  const line = resolveYoteiZone(labels, loc, locale, mapKey);
   const att = Array.isArray(o.attunements)
     ? o.attunements.map((x) => String(x).trim()).filter(Boolean)
     : [];
-  let line = pt ? `${loc} — ${pt}` : loc;
-  if (att.length > 0) {
-    const tag = locale === 'ru' ? 'настройки' : 'attunements';
-    line += ` (${tag}: ${att.join(', ')})`;
-  }
-  return line;
+  if (att.length === 0) return line;
+  const tag = locale === 'ru' ? 'настройки' : 'attunements';
+  return `${line} (${tag}: ${att.join(', ')})`;
 }
 
 /**
+ * Ключ для `challengeCards` в JSON + поля API для отображения (в шапке — `description`, не `name`).
+ *
  * @param {unknown} round
- * @returns {string}
+ * @returns {{ key: string, description: string, name: string }}
  */
-function challengeCardFromRound(round) {
-  if (!round || typeof round !== 'object') return '';
-  const o = /** @type {Record<string, unknown>} */ (round);
-  const direct = o.challenge_card ?? o.challengeCard;
-  if (typeof direct === 'string' && direct.trim()) return direct.trim();
-  if (direct && typeof direct === 'object') {
-    const nm = String(/** @type {Record<string, unknown>} */ (direct).name ?? '').trim();
-    if (nm) return nm;
+function challengeApiFieldsFromRound(round) {
+  if (!round || typeof round !== 'object') {
+    return { key: '', description: '', name: '' };
   }
+  const o = /** @type {Record<string, unknown>} */ (round);
+  let key = '';
+  let description = '';
+  let name = '';
+
+  const direct = o.challenge_card ?? o.challengeCard;
+  if (typeof direct === 'string' && direct.trim()) {
+    key = direct.trim();
+  } else if (direct && typeof direct === 'object') {
+    const d = /** @type {Record<string, unknown>} */ (direct);
+    name = String(d.name ?? '').trim();
+    description = String(d.description ?? '').trim();
+    if (name) key = name;
+  }
+
   const ch = o.challenge;
   if (ch && typeof ch === 'object') {
-    const nm = String(/** @type {Record<string, unknown>} */ (ch).name ?? '').trim();
-    if (nm) return nm;
+    const c = /** @type {Record<string, unknown>} */ (ch);
+    const cn = String(c.name ?? '').trim();
+    const cd = String(c.description ?? '').trim();
+    if (!name) name = cn;
+    if (!description) description = cd;
+    if (!key && cn) key = cn;
   }
-  return '';
+
+  return { key, description, name };
 }
 
 /**
@@ -82,10 +113,12 @@ function roundsFourSlots(roundsRaw) {
 
 /**
  * @param {object} round
+ * @param {ReturnType<typeof import('../data/yotei-labels.js').loadYoteiLabels>} labels
  * @param {'en' | 'ru'} locale
+ * @param {string} mapKey
  * @returns {string[]}
  */
-function waveLineBlocksForRound(round, locale) {
+function waveLineBlocksForRound(round, labels, locale, mapKey) {
   const ro = /** @type {Record<string, unknown>} */ (round);
   const waves = Array.isArray(ro.waves) ? [...ro.waves] : [];
   const sorted = waves
@@ -109,7 +142,7 @@ function waveLineBlocksForRound(round, locale) {
       const ob = b && typeof b === 'object' && /** @type {{ order?: number }} */ (b).order;
       return (typeof oa === 'number' ? oa : 0) - (typeof ob === 'number' ? ob : 0);
     });
-    const cellLines = spawns.map((s) => yoteiSpawnCellLine(s, locale)).filter(Boolean);
+    const cellLines = spawns.map((s) => yoteiSpawnCellLine(s, labels, locale, mapKey)).filter(Boolean);
     blocks.push(
       formatWaveBlockFromCellLines(display, cellLines, t(locale, 'tsushima_wave_no_spawns')),
     );
@@ -122,18 +155,21 @@ function waveLineBlocksForRound(round, locale) {
  * @param {Record<string, unknown>} mapRow
  * @param {'en' | 'ru'} locale
  * @param {string} creditText
+ * @param {ReturnType<typeof import('../data/yotei-labels.js').loadYoteiLabels>} labels
  */
-function buildYoteiMainContent(mapRow, locale, creditText) {
-  const name = String(mapRow.name ?? '').trim() || '?';
-  const lines = [
-    `# ${name}`,
-    `## ${t(locale, 'yotei_challenge_cards_header')}`,
-  ];
+function buildYoteiMainContent(mapRow, locale, creditText, labels) {
+  const mapKey = mapDictionaryKey(mapRow);
+  const apiMapTitle = String(mapRow.name ?? mapRow.title ?? '').trim() || mapKey;
+  const title = resolveYoteiMapTitle(labels, mapKey, locale, apiMapTitle);
+  const lines = [`# ${title}`, `## ${t(locale, 'yotei_challenge_cards_header')}`];
 
   const slots = roundsFourSlots(mapRow.rounds);
   const dash = t(locale, 'yotei_stage_no_data');
   for (let i = 0; i < STAGE_COUNT; i += 1) {
-    const card = slots[i] ? challengeCardFromRound(slots[i]) : '';
+    const slot = slots[i];
+    const { key, description, name } = challengeApiFieldsFromRound(slot);
+    const apiCardLine = (description || name).trim();
+    const card = slot ? resolveYoteiChallengeCard(labels, key, locale, apiCardLine) : '';
     lines.push(`> ${i + 1}. ${card || dash}`);
   }
 
@@ -147,6 +183,7 @@ function buildYoteiMainContent(mapRow, locale, creditText) {
  */
 export function formatYoteiRotationEmbedPayloads(apiJson, options = {}) {
   const locale = options.locale === 'en' ? 'en' : 'ru';
+  const labels = loadYoteiLabels();
 
   if (!apiJson || typeof apiJson !== 'object') {
     return [{ content: t(locale, 'yotei_format_empty_api'), embeds: [] }];
@@ -170,7 +207,8 @@ export function formatYoteiRotationEmbedPayloads(apiJson, options = {}) {
           ? String(m.credit_text)
           : '';
 
-    const content = buildYoteiMainContent(m, locale, creditText);
+    const content = buildYoteiMainContent(m, locale, creditText, labels);
+    const mapKey = mapDictionaryKey(m);
     const slots = roundsFourSlots(m.rounds);
 
     /** @type {EmbedBuilder[]} */
@@ -181,16 +219,22 @@ export function formatYoteiRotationEmbedPayloads(apiJson, options = {}) {
 
       let description = t(locale, 'yotei_stage_no_data');
       if (round && typeof round === 'object') {
-        const blocks = waveLineBlocksForRound(round, locale);
+        const blocks = waveLineBlocksForRound(round, labels, locale, mapKey);
         description = blocks.length > 0 ? blocks.join(WAVE_BLOCK_SEPARATOR) : t(locale, 'yotei_stage_no_data');
       }
 
-      embeds.push(
-        new EmbedBuilder()
-          .setColor(EMBED_COLOR)
-          .setTitle(title)
-          .setDescription(description.slice(0, 4096) || '—'),
-      );
+      const { key: cardKey } =
+        round && typeof round === 'object'
+          ? challengeApiFieldsFromRound(round)
+          : { key: '' };
+      const cardThumbUrl = cardKey ? resolveYoteiChallengeCardThumbnail(labels, cardKey) : null;
+
+      const embed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle(title)
+        .setDescription(description.slice(0, 4096) || '—');
+      if (cardThumbUrl) embed.setThumbnail(cardThumbUrl);
+      embeds.push(embed);
     }
 
     out.push({ content, embeds });

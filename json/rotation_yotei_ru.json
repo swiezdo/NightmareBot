@@ -1,0 +1,97 @@
+{
+  "maps": [
+    {
+      "slug": "broken-castle",
+      "name": "Демон (Разрушенный замок)",
+      "zones": [
+        { "location": "Foundry", "zone": "Плавильня" },
+        { "location": "Burned Garden", "zone": "Сгоревший сад" },
+        { "location": "Keep", "zone": "Крепость" }
+      ]
+    },
+    {
+      "slug": "river-village",
+      "name": "Паук (Деревня на реке)",
+      "zones": [
+        { "location": "Beach", "zone": "Побережье" },
+        { "location": "Rice Paddies", "zone": "Рисовые поля" },
+        { "location": "Village", "zone": "Деревня" }
+      ]
+    },
+    {
+      "slug": "frozen-valley",
+      "name": "Кицунэ (Замёрзшая долина)",
+      "zones": [
+        { "location": "Waterfall", "zone": "Водопады" },
+        { "location": "Hillside", "zone": "Холмы" },
+        { "location": "Armory", "zone": "Оружейная" }
+      ]
+    },
+    {
+      "slug": "hidden-temple",
+      "name": "Тайный храм (Змей)",
+      "zones": [
+        { "location": "Pagoda", "zone": "Пагода" },
+        { "location": "Cemetery", "zone": "Кладбище" },
+        { "location": "Courtyard", "zone": "Двор" }
+      ]
+    }
+  ],
+  "challenge_cards": [
+    {
+      "slug": "spirit-healing-drunk",
+      "line": "При лечении с помощью воли призраки пьянеют",
+      "emoji": "<:cards_spirit_healing_drunk:1491884351816990760>"
+    },
+    {
+      "slug": "lose-location",
+      "line": "В начале этапа вы теряете одну из областей",
+      "emoji": "<:cards_lose_location:1491884571552256132>"
+    },
+    {
+      "slug": "unique-enemy-ambush",
+      "line": "Особые враги в засаде",
+      "emoji": "<:cards_unique_enemy_ambush:1491884779543465994>"
+    },
+    {
+      "slug": "much-more-damage",
+      "line": "Враги наносят гораздо больше урона",
+      "emoji": "<:cards_much_more_damage:1491885212081061978>"
+    },
+    {
+      "slug": "ranged-last-hit",
+      "line": "Добивание только метательным или дальнобойным оружием",
+      "emoji": "<:cards_ranged_last_hit:1491885413433081868>"
+    },
+    {
+      "slug": "extremely-fast-attacks",
+      "line": "Враги атакуют гораздо быстрее",
+      "emoji": "<:cards_extremely_fast_attacks:1491885739166666802>"
+    },
+    {
+      "slug": "ghost-health-drain",
+      "line": "Призраки постепенно теряют здоровье",
+      "emoji": "<:cards_ghost_health_drain:1491886099016978492>"
+    },
+    {
+      "slug": "НАДО ДОБАВИТЬ",
+      "line": "Восстановление умений роли занимает больше времени",
+      "emoji": "<:cards_todo1:1491887227846922443>"
+    },
+    {
+      "slug": "НАДО ДОБАВИТЬ",
+      "line": "Максимальный запас здоровья значительно уменьшен",
+      "emoji": "<:cards_todo2:1491886504975273994>"
+    },
+    {
+      "slug": "НАДО ДОБАВИТЬ",
+      "line": "Оживление призраков занимает гораздо больше времени",
+      "emoji": "<:cards_todo3:1491886905950736554>"
+    },
+    {
+      "slug": "НАДО ДОБАВИТЬ",
+      "line": "Восстановление орудий призраков занимает гораздо больше времени",
+      "emoji": "<:cards_todo4:1491887402094956636>"
+    }
+  ]
+}
