@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
-import { handleSetupWavesInteraction, parseAllowedUserIds } from './handlers/setup-waves.js';
+import { handleSetupWavesInteraction } from './handlers/setup-waves.js';
+import { handleWhitelistCommand } from './handlers/whitelist-command.js';
+import { parseManagerUserIds } from './utils/setup-access.js';
 import { handleWavesCommand } from './handlers/waves-command.js';
 import { handleBulkWavesDmMessage } from './handlers/bulk-waves-message.js';
 import { initDatabase } from './db/database.js';
@@ -15,10 +17,10 @@ if (!token) {
 
 const debugWs = process.env.WAVES_BOT_DEBUG === '1' || process.env.WAVES_BOT_DEBUG === 'true';
 
-const allowed = parseAllowedUserIds(process.env.SETUP_WAVES_ALLOWED_USER_IDS);
-if (allowed.size === 0) {
+const managers = parseManagerUserIds(process.env.ALLOWED_USER_IDS);
+if (managers.size === 0) {
   console.warn(
-    'SETUP_WAVES_ALLOWED_USER_IDS пуст — /setup-waves и /edit-waves никто не вызовет (/waves доступен всем).',
+    'ALLOWED_USER_IDS пуст — команды /whitelist-* недоступны; /setup-waves и /edit-waves только у кого есть строка в таблице waves_setup_allowlist (или вручную в БД). /waves без ограничений.',
   );
 }
 
@@ -73,6 +75,15 @@ client.on(Events.MessageCreate, async (message) => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
+    if (
+      interaction.isChatInputCommand() &&
+      (interaction.commandName === 'whitelist-add' ||
+        interaction.commandName === 'whitelist-remove' ||
+        interaction.commandName === 'whitelist-show')
+    ) {
+      await handleWhitelistCommand(interaction, client);
+      return;
+    }
     if (interaction.isChatInputCommand() && interaction.commandName === 'waves') {
       await handleWavesCommand(interaction);
       return;

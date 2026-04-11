@@ -30,6 +30,7 @@ import {
   summarizeNightmareApiFailure,
 } from '../api/nightmare-tsushima.js';
 import { GRID_PAGE_COUNT, SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
+import { isAllowedForSetupCommands } from '../utils/setup-access.js';
 
 const DISCORD_CONTENT_MAX = 2000;
 
@@ -176,26 +177,6 @@ async function editWizardMessageOrRecover(interaction, session, payload) {
   }
 }
 
-/** @param {string | undefined} raw */
-export function parseAllowedUserIds(raw) {
-  if (!raw || !String(raw).trim()) return new Set();
-  const s = String(raw).trim();
-  try {
-    if (s.startsWith('[')) {
-      const arr = JSON.parse(s);
-      if (Array.isArray(arr)) return new Set(arr.map((x) => String(x)));
-    }
-  } catch {
-    /* fall through */
-  }
-  return new Set(
-    s
-      .split(',')
-      .map((x) => x.trim())
-      .filter(Boolean),
-  );
-}
-
 /**
  * @param {import('discord.js').Interaction} interaction
  */
@@ -257,9 +238,7 @@ function newSession(userId, game, options = {}) {
  * @param {import('discord.js').Client} _client
  */
 export async function handleSetupWavesInteraction(interaction, _client) {
-  const allowed = parseAllowedUserIds(process.env.SETUP_WAVES_ALLOWED_USER_IDS);
-
-  if (!allowed.has(interaction.user.id)) {
+  if (!isAllowedForSetupCommands(interaction.user.id)) {
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
       await interaction.reply({
         content: t('ru', 'forbidden'),
@@ -341,7 +320,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       return;
     }
 
-    const loc = allowed.has(interaction.user.id) ? 'ru' : 'en';
+    const loc = isAllowedForSetupCommands(interaction.user.id) ? 'ru' : 'en';
     await interaction.deferReply();
 
     const token = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();

@@ -9,7 +9,7 @@ import {
   applyBulkAssignments,
   formatBulkParseFailure,
 } from '../wizard/bulk-waves-text.js';
-import { parseAllowedUserIds } from './setup-waves.js';
+import { isAllowedForSetupCommands } from '../utils/setup-access.js';
 
 /**
  * Удаляет старое сообщение мастера и шлёт новое, чтобы панель была ниже ответа пользователя.
@@ -39,8 +39,7 @@ async function replaceWizardMessage(channel, session, rotations) {
 export async function handleBulkWavesDmMessage(message) {
   if (message.author.bot) return;
   if (message.channel?.type !== ChannelType.DM) return;
-  const allowed = parseAllowedUserIds(process.env.SETUP_WAVES_ALLOWED_USER_IDS);
-  if (!allowed.has(message.author.id)) return;
+  if (!isAllowedForSetupCommands(message.author.id)) return;
 
   const resolved = await resolveBulkInputSession(message);
   if (!resolved) return;

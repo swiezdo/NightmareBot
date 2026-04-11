@@ -37,6 +37,27 @@ const commands = [
       .setDescription('Edit current waves from Nightmare.Club. DMs only.')
       .setIntegrationTypes(...GUILD_INSTALL_ONLY),
   ).toJSON(),
+  new SlashCommandBuilder()
+    .setName('whitelist-add')
+    .setDescription('Add a user to the setup/edit allowlist (managers only).')
+    .setIntegrationTypes(...GUILD_INSTALL_ONLY)
+    .addUserOption((option) =>
+      option.setName('user').setDescription('User to allow').setRequired(true),
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('whitelist-remove')
+    .setDescription('Remove a user from the database allowlist (managers only).')
+    .setIntegrationTypes(...GUILD_INSTALL_ONLY)
+    .addUserOption((option) =>
+      option.setName('user').setDescription('User to remove').setRequired(true),
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('whitelist-show')
+    .setDescription('List everyone who can use /setup-waves and /edit-waves (managers only).')
+    .setIntegrationTypes(...GUILD_INSTALL_ONLY)
+    .toJSON(),
   gameOption(
     new SlashCommandBuilder()
       .setName('waves')

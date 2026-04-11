@@ -15,7 +15,7 @@ When the grid is complete and the user presses **Done**, a **modal** asks for **
 ```bash
 npm install
 cp .env.example .env
-# fill DISCORD_TOKEN, CLIENT_ID, SETUP_WAVES_ALLOWED_USER_IDS,
+# fill DISCORD_TOKEN, CLIENT_ID, ALLOWED_USER_IDS (managers + /whitelist-*),
 # NIGHTMARE_CLUB_TSUSHIMA_URL, NIGHTMARE_CLUB_TSUSHIMA_TOKEN
 npm run deploy-commands   # when slash definitions change
 npm start
@@ -23,6 +23,7 @@ npm start
 
 ## Data / SQLite
 
+- **Access:** **`ALLOWED_USER_IDS`** in `.env` lists **managers** (comma-separated or JSON array of Discord user IDs): they always may use `/setup-waves`, `/edit-waves`, bulk DM, and **`/whitelist-add`**, **`/whitelist-remove`**, **`/whitelist-show`** (all whitelist replies are ephemeral). Everyone else needs a row in table **`waves_setup_allowlist`** (added by managers). If **`ALLOWED_USER_IDS`** is empty, nobody can run whitelist commands; setup/edit then only works for users already present in that table (e.g. inserted manually). Upgrading from older configs: rename **`SETUP_WAVES_ALLOWED_USER_IDS`** → **`ALLOWED_USER_IDS`** in `.env`.
 - **Sessions** are stored in **`data/waves_bot.db`** (SQLite via `better-sqlite3`), not in `sessions.json`.
 - On first startup, if **`data/sessions.json`** exists and the DB table is empty, rows are imported and the file is renamed to **`data/sessions.json.migrated`**.
 - Legacy table **`waves_tsushima_publish`** is dropped on bot startup if it exists (publishing no longer mirrors to SQLite).
@@ -46,6 +47,9 @@ The bot process and sqlite-web both open the same SQLite file; avoid heavy write
 |------|---------|
 | `src/index.js` | Discord client |
 | `src/handlers/setup-waves.js` | `/setup-waves` and component interactions |
+| `src/handlers/whitelist-command.js` | `/whitelist-add`, `/whitelist-remove`, `/whitelist-show` (managers only, ephemeral) |
+| `src/utils/setup-access.js` | `ALLOWED_USER_IDS` managers + `isAllowedForSetupCommands` |
+| `src/db/setup-allowlist.js` | SQLite `waves_setup_allowlist` CRUD |
 | `src/handlers/bulk-waves-message.js` | DM `messageCreate` for bulk text wave import |
 | `src/wizard/bulk-waves-text.js` | Bulk paste instructions, parser, spawn catalog |
 | `src/db/bulk-session.js` | Resolve which session waits for bulk DM input |

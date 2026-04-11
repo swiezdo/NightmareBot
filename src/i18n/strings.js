@@ -97,6 +97,17 @@ export const strings = {
     yotei_format_empty_api: 'Empty API response.',
     yotei_format_empty_maps: 'No Yōtei maps with rotation for the current week.',
     yotei_format_no_maps_in_response: 'No maps in response.',
+    whitelist_forbidden: 'Only **ALLOWED_USER_IDS** managers can use whitelist commands.',
+    whitelist_add_ok: 'Added **{tag}** (`{id}`) to the setup/edit allowlist.',
+    whitelist_add_dup: 'That user is already in the database allowlist.',
+    whitelist_add_bot: 'Bots cannot be added.',
+    whitelist_remove_ok: 'Removed **{tag}** (`{id}`) from the database allowlist.',
+    whitelist_remove_missing: 'That user is not in the database allowlist (env managers are not listed here).',
+    whitelist_show_empty: 'No database entries. Only **ALLOWED_USER_IDS** managers have access until someone is added.',
+    whitelist_show_header_managers: '**Managers (ALLOWED_USER_IDS)**',
+    whitelist_show_header_db: '**Added (database)**',
+    whitelist_show_line: '• {tag} — `{id}`',
+    whitelist_show_truncated: '\n… (truncated)',
   },
   ru: {
     choose_language_line: 'Choose your language / Выбери свой язык',
@@ -195,6 +206,19 @@ export const strings = {
     yotei_format_empty_api: 'Пустой ответ API.',
     yotei_format_empty_maps: 'Нет карт с ротацией Yōtei на текущую неделю.',
     yotei_format_no_maps_in_response: 'Нет ни одной карты в ответе.',
+    whitelist_forbidden: 'Команды whitelist доступны только менеджерам из **ALLOWED_USER_IDS**.',
+    whitelist_add_ok: 'Добавлен **{tag}** (`{id}`) в список доступа к setup/edit.',
+    whitelist_add_dup: 'Этот пользователь уже есть в списке в базе.',
+    whitelist_add_bot: 'Ботов нельзя добавлять.',
+    whitelist_remove_ok: 'Удалён **{tag}** (`{id}`) из списка в базе.',
+    whitelist_remove_missing:
+      'Этого пользователя нет в списке базы (менеджеры из env здесь не хранятся).',
+    whitelist_show_empty:
+      'В базе никого. Доступ только у менеджеров **ALLOWED_USER_IDS**, пока кого-то не добавят.',
+    whitelist_show_header_managers: '**Менеджеры (ALLOWED_USER_IDS)**',
+    whitelist_show_header_db: '**Добавленные (база)**',
+    whitelist_show_line: '• {tag} — `{id}`',
+    whitelist_show_truncated: '\n… (обрезано)',
   },
 };
 

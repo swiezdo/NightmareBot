@@ -42,6 +42,19 @@ function ensureSessionsTable() {
   `);
 }
 
+export const WAVES_SETUP_ALLOWLIST_TABLE = 'waves_setup_allowlist';
+
+function ensureWavesSetupAllowlistTable() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ${WAVES_SETUP_ALLOWLIST_TABLE} (
+      user_id TEXT PRIMARY KEY NOT NULL,
+      display_name TEXT NOT NULL,
+      added_at INTEGER NOT NULL,
+      added_by TEXT NOT NULL
+    );
+  `);
+}
+
 function migrateLegacySessionsJson() {
   const row = /** @type {{ c: number }} */ (
     db.prepare(`SELECT COUNT(*) AS c FROM ${SESSIONS_TABLE}`).get()
@@ -94,6 +107,7 @@ export function initDatabase() {
   db.pragma('foreign_keys = ON');
 
   ensureSessionsTable();
+  ensureWavesSetupAllowlistTable();
 
   db.exec('DROP TABLE IF EXISTS waves_tsushima_publish;');
 
