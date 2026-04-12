@@ -42,6 +42,9 @@ import {
 import {
   fetchYoteiRotationRead,
   buildDraftFromYoteiReadApi,
+  buildYoteiApiPayload,
+  getYoteiRotationPutUrl,
+  pushYoteiToNightmare,
 } from '../api/nightmare-yotei.js';
 import { getWaveGridSpec } from '../wizard/game-geometry.js';
 import { isAllowedForSetupCommands } from '../utils/setup-access.js';
@@ -145,7 +148,95 @@ async function publishTsushimaAfterCredits(interaction, session, loc) {
 }
 
 /**
- * После модалки Credits для Yōtei: без PUT, закрыть сессию и обновить панель.
+ * @param {import('discord.js').ModalSubmitInteraction} interaction
+ * @param {object} session
+ * @param {'en' | 'ru'} loc
+ */
+async function publishYoteiAfterCredits(interaction, session, loc) {
+  const apiUrl = getYoteiRotationPutUrl();
+  const apiToken = String(process.env.NIGHTMARE_CLUB_YOTEI_TOKEN ?? '').trim();
+
+  await interaction.deferReply();
+
+  if (!apiUrl || !apiToken) {
+    await interaction.editReply({
+      content: t(loc, 'waves_yotei_publish_not_configured').slice(0, DISCORD_CONTENT_MAX),
+    });
+    return;
+  }
+
+  /** @type {Record<string, unknown>} */
+  let payload;
+  try {
+    payload = buildYoteiApiPayload(session.draft);
+  } catch (e) {
+    console.error('buildYoteiApiPayload', e);
+    await interaction.editReply({ content: t(loc, 'api_payload_error') });
+    return;
+  }
+
+  try {
+    const result = await pushYoteiToNightmare(payload, { url: apiUrl, token: apiToken });
+    if (!result.ok) {
+      console.error('pushYoteiToNightmare', result.status, result.json);
+      const detail = summarizeNightmareApiFailure(result);
+      const msg = `${t(loc, 'api_publish_failed_prefix')}\n${detail}`.slice(0, DISCORD_CONTENT_MAX);
+      await interaction.editReply({ content: msg });
+      return;
+    }
+
+    deleteSession(interaction.user.id, session.sourceCommand);
+
+    const weekStart =
+      result.json &&
+      typeof result.json === 'object' &&
+      result.json !== null &&
+      'week_start' in result.json
+        ? String(/** @type {{ week_start?: string }} */ (result.json).week_start ?? '')
+        : '';
+    const weekLine = weekStart ? `\n${t(loc, 'api_week_line').replace('{week}', weekStart)}` : '';
+    const finalContent = `${t(loc, 'saved_success_api')}${weekLine}\n${t(loc, 'confirm_saved')}`.slice(
+      0,
+      DISCORD_CONTENT_MAX,
+    );
+
+    await interaction.editReply({ content: finalContent });
+
+    const wizardEditPayload = {
+      content: finalContent,
+      components: [],
+      embeds: [],
+    };
+
+    /** @type {import('discord.js').Message | null} */
+    let wizardMsg = null;
+    if (interaction.isFromMessage()) {
+      wizardMsg = interaction.message;
+    } else if (session.messageId && interaction.channel?.isTextBased()) {
+      try {
+        wizardMsg = await interaction.channel.messages.fetch(session.messageId);
+      } catch {
+        wizardMsg = null;
+      }
+    }
+
+    if (wizardMsg && !wizardMsg.flags.has(MessageFlags.Ephemeral)) {
+      try {
+        await wizardMsg.edit(wizardEditPayload);
+      } catch (e) {
+        if (!isDiscordUnknownMessage(e)) {
+          console.error('edit wizard after yotei publish', e);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('publishYoteiAfterCredits', e);
+    await interaction.editReply({ content: t(loc, 'api_network_error') });
+  }
+}
+
+/**
+ * После модалки Credits для Yōtei, если PUT не настроен: закрыть сессию и заглушка.
  *
  * @param {import('discord.js').ModalSubmitInteraction} interaction
  * @param {object} session
@@ -642,7 +733,13 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     sessionModal.draft.credits = rawCredits.trim() || DEFAULT_TSUSHIMA_CREDIT_TEXT;
 
     if (sessionModal.game === 'yotei') {
-      await finishYoteiAfterCredits(interaction, sessionModal, locModal);
+      const putUrl = getYoteiRotationPutUrl();
+      const tokenY = String(process.env.NIGHTMARE_CLUB_YOTEI_TOKEN ?? '').trim();
+      if (!putUrl || !tokenY) {
+        await finishYoteiAfterCredits(interaction, sessionModal, locModal);
+        return;
+      }
+      await publishYoteiAfterCredits(interaction, sessionModal, locModal);
       return;
     }
 
@@ -1175,6 +1272,22 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         try {
           await interaction.followUp({
             content: t(loc, 'api_not_configured').slice(0, DISCORD_CONTENT_MAX),
+          });
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+    }
+
+    if (gridGame === 'yotei') {
+      const apiUrlY = getYoteiRotationPutUrl();
+      const apiTokenY = String(process.env.NIGHTMARE_CLUB_YOTEI_TOKEN ?? '').trim();
+      if (!apiUrlY || !apiTokenY) {
+        await interaction.deferUpdate();
+        try {
+          await interaction.followUp({
+            content: t(loc, 'waves_yotei_publish_not_configured').slice(0, DISCORD_CONTENT_MAX),
           });
         } catch {
           /* ignore */

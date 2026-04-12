@@ -107,6 +107,8 @@ export const strings = {
     waves_yotei_read_http: 'Failed to load Yōtei rotation: HTTP **{status}**.',
     waves_yotei_read_timeout: 'Yōtei API request timed out. Try again later.',
     waves_yotei_read_network: 'Network error while loading Yōtei rotation. Try again later.',
+    waves_yotei_publish_not_configured:
+      'Yōtei publish is not configured. Set **NIGHTMARE_CLUB_YOTEI_TOKEN** and **NIGHTMARE_CLUB_YOTEI_URL** (full `PUT …/api/rotations/yotei` on your site). If **NIGHTMARE_CLUB_YOTEI_READ_URL** (or the default) ends with `/api/rotation/yotei`, the PUT URL can be derived automatically when **NIGHTMARE_CLUB_YOTEI_URL** is unset.',
     waves_wrong_channel: 'Use `/waves` in a server text channel or in DMs with the bot.',
     tsushima_format_missing_week_json:
       '⚠️ Week not found in `json/rotation_tsushima_*.json` — refresh files or check `week_code`.',
@@ -242,6 +244,8 @@ export const strings = {
     waves_yotei_read_http: 'Не удалось загрузить ротацию Yōtei: HTTP **{status}**.',
     waves_yotei_read_timeout: 'Превышено время ожидания API Yōtei. Попробуйте позже.',
     waves_yotei_read_network: 'Сетевая ошибка при загрузке ротации Yōtei. Попробуйте позже.',
+    waves_yotei_publish_not_configured:
+      'Публикация Yōtei не настроена. Укажите **NIGHTMARE_CLUB_YOTEI_TOKEN** и **NIGHTMARE_CLUB_YOTEI_URL** (полный `PUT …/api/rotations/yotei`). Если read-URL заканчивается на `/api/rotation/yotei`, PUT-адрес можно не задавать — он выводится из read URL.',
     waves_wrong_channel: 'Вызывайте `/waves` в текстовом канале сервера или в ЛС с ботом.',
     tsushima_format_missing_week_json:
       '⚠️ Неделя не найдена в `json/rotation_tsushima_*.json` — обновите файлы или проверьте `week_code`.',

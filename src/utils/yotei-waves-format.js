@@ -6,6 +6,7 @@ import {
   resolveYoteiMapTitle,
   resolveYoteiZone,
 } from '../data/yotei-labels.js';
+import { normalizeYoteiApiJsonForEmbeds } from '../api/nightmare-yotei.js';
 import { t } from '../i18n/strings.js';
 import {
   WAVE_BLOCK_SEPARATOR,
@@ -178,10 +179,11 @@ export function formatYoteiRotationEmbedPayloads(apiJson, options = {}) {
     return [{ content: t(locale, 'yotei_format_empty_api'), embeds: [] }];
   }
 
-  const maps = /** @type {{ maps?: unknown }} */ (apiJson).maps;
-  if (!Array.isArray(maps) || maps.length === 0) {
+  const wrapped = normalizeYoteiApiJsonForEmbeds(apiJson, labels);
+  if (!wrapped || !Array.isArray(wrapped.maps) || wrapped.maps.length === 0) {
     return [{ content: t(locale, 'yotei_format_empty_maps'), embeds: [] }];
   }
+  const maps = wrapped.maps;
 
   /** @type {Array<{ content: string, embeds: EmbedBuilder[] }>} */
   const out = [];
