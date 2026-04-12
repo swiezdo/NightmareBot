@@ -1,39 +1,148 @@
 {
+  "cycle_length": 12,
   "maps": [
     {
       "slug": "broken-castle",
       "name": "Демон (Разрушенный замок)",
       "zones": [
-        { "location": "Foundry", "zone": "Плавильня" },
-        { "location": "Burned Garden", "zone": "Сгоревший сад" },
-        { "location": "Keep", "zone": "Крепость" }
+        {
+          "location": "Foundry",
+          "zone": "Плавильня",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        },
+        {
+          "location": "Burned Garden",
+          "zone": "Сгоревший сад",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        },
+        {
+          "location": "Keep",
+          "zone": "Крепость",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        }
+      ],
+      "scheduled_weeks": [
+        {
+          "week": 4,
+          "round_challenges": [
+            "lose-location",
+            "lose-location",
+            "lose-location",
+            "lose-location"
+          ]
+        },
+        { "week": 8, "round_challenges": null },
+        { "week": 12, "round_challenges": null }
       ]
     },
     {
       "slug": "river-village",
       "name": "Паук (Деревня на реке)",
       "zones": [
-        { "location": "Beach", "zone": "Побережье" },
-        { "location": "Rice Paddies", "zone": "Рисовые поля" },
-        { "location": "Village", "zone": "Деревня" }
+        {
+          "location": "Beach",
+          "zone": "Побережье",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        },
+        {
+          "location": "Rice Paddies",
+          "zone": "Рисовые поля",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        },
+        {
+          "location": "Village",
+          "zone": "Деревня",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        }
+      ],
+      "scheduled_weeks": [
+        {
+          "week": 3,
+          "round_challenges": [
+            "spirit-healing-drunk",
+            "extremely-fast-attacks",
+            "ghost-health-drain",
+            "spirit-healing-drunk"
+          ]
+        },
+        { "week": 7, "round_challenges": null },
+        { "week": 11, "round_challenges": null }
       ]
     },
     {
       "slug": "frozen-valley",
       "name": "Кицунэ (Замёрзшая долина)",
       "zones": [
-        { "location": "Waterfall", "zone": "Водопады" },
-        { "location": "Hillside", "zone": "Холмы" },
-        { "location": "Armory", "zone": "Оружейная" }
+        {
+          "location": "Waterfall",
+          "zone": "Водопады",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        },
+        {
+          "location": "Hillside",
+          "zone": "Холмы",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        },
+        {
+          "location": "Armory",
+          "zone": "Оружейная",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        }
+      ],
+      "scheduled_weeks": [
+        {
+          "week": 1,
+          "round_challenges": [
+            "lose-location",
+            "lose-location",
+            "lose-location",
+            "lose-location"
+          ]
+        },
+        {
+          "week": 5,
+          "round_challenges": [
+            "max-health-significantly-reduced",
+            "reviving-ghosts-much-longer",
+            "ghost-weapon-cooldowns-increased",
+            "unique-enemy-ambush"
+          ]
+        },
+        { "week": 9, "round_challenges": null }
       ]
     },
     {
       "slug": "hidden-temple",
       "name": "Тайный храм (Змей)",
       "zones": [
-        { "location": "Pagoda", "zone": "Пагода" },
-        { "location": "Cemetery", "zone": "Кладбище" },
-        { "location": "Courtyard", "zone": "Двор" }
+        {
+          "location": "Pagoda",
+          "zone": "Пагода",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        },
+        {
+          "location": "Cemetery",
+          "zone": "Кладбище",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        },
+        {
+          "location": "Courtyard",
+          "zone": "Двор",
+          "spawn": { "left": "Лево", "middle": "Центр", "right": "Право" }
+        }
+      ],
+      "scheduled_weeks": [
+        {
+          "week": 2,
+          "round_challenges": [
+            "ranged-last-hit",
+            "much-more-damage",
+            "increased-cooldowns",
+            "unique-enemy-ambush"
+          ]
+        },
+        { "week": 6, "round_challenges": null },
+        { "week": 10, "round_challenges": null }
       ]
     }
   ],
@@ -74,9 +183,9 @@
       "emoji": "<:cards_ghost_health_drain:1491886099016978492>"
     },
     {
-      "slug": "НАДО ДОБАВИТЬ",
+      "slug": "increased-cooldowns",
       "line": "Восстановление умений роли занимает больше времени",
-      "emoji": "<:cards_todo1:1491887227846922443>"
+      "emoji": "<:cards_increased_cooldowns:1491887227846922443>"
     },
     {
       "slug": "max-health-significantly-reduced",
@@ -92,11 +201,6 @@
       "slug": "ghost-weapon-cooldowns-increased",
       "line": "Восстановление орудий призраков занимает гораздо больше времени",
       "emoji": "<:cards_ghost_weapon_cooldowns_inc:1491887402094956636>"
-    },
-    {
-      "slug": "unique-enemy-ambush",
-      "line": "Особые враги в засаде",
-      "emoji": "<:cards_unique_enemy_ambush:1491884779543465994>"
     }
   ]
 }

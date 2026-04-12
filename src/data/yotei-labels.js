@@ -2,13 +2,16 @@ import fs from 'node:fs';
 import { ROTATION_YOTEI_EN_PATH, ROTATION_YOTEI_RU_PATH } from '../paths.js';
 
 /**
+ * @typedef {{ week: number, roundChallenges: string[] | null }} YoteiMapWeekSchedule
  * @typedef {{ en: string, ru: string }} YoteiBilingual
  * @typedef {{ en: string, ru: string, thumbnailUrl: string }} YoteiChallengeMerged
  * @typedef {{
  *   maps: Record<string, YoteiBilingual>,
  *   zones: Record<string, YoteiBilingual>,
  *   zonesByMap: Record<string, Record<string, YoteiBilingual>>,
- *   challengeCards: Record<string, YoteiChallengeMerged>
+ *   challengeCards: Record<string, YoteiChallengeMerged>,
+ *   scheduleByMapSlug: Record<string, YoteiMapWeekSchedule[]>,
+ *   cycleLength: number | null
  * }} YoteiLabels
  */
 
@@ -101,6 +104,60 @@ function challengeRow(row) {
 }
 
 /**
+ * @param {unknown} mapRow
+ * @returns {Array<{ week: number, roundChallenges: string[] | null }>}
+ */
+function parseMapScheduledWeeks(mapRow) {
+  if (!mapRow || typeof mapRow !== 'object') return [];
+  const o = /** @type {Record<string, unknown>} */ (mapRow);
+  const raw = o.scheduled_weeks ?? o.scheduledWeeks;
+  if (!Array.isArray(raw)) return [];
+
+  /** @type {Array<{ week: number, roundChallenges: string[] | null }>} */
+  const out = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const io = /** @type {Record<string, unknown>} */ (item);
+    const week = Number(io.week);
+    if (!Number.isInteger(week) || week < 1 || week > 12) {
+      console.warn('[yotei-rotation] scheduled_weeks: invalid week (need 1–12)', item);
+      continue;
+    }
+    const rc = io.round_challenges ?? io.roundChallenges;
+    if (rc === null || rc === undefined) {
+      out.push({ week, roundChallenges: null });
+      continue;
+    }
+    if (!Array.isArray(rc)) {
+      console.warn('[yotei-rotation] scheduled_weeks: round_challenges must be array or null', item);
+      continue;
+    }
+    const slugs = rc.map((x) => String(x ?? '').trim()).filter(Boolean);
+    if (slugs.length !== 4) {
+      console.warn('[yotei-rotation] scheduled_weeks: need exactly 4 slugs when not null', {
+        week,
+        count: slugs.length,
+      });
+      continue;
+    }
+    out.push({ week, roundChallenges: slugs });
+  }
+  out.sort((a, b) => a.week - b.week);
+  return out;
+}
+
+/**
+ * @param {unknown | null} rawRoot
+ * @returns {number | null}
+ */
+function parseCycleLength(rawRoot) {
+  if (!rawRoot || typeof rawRoot !== 'object' || Array.isArray(rawRoot)) return null;
+  const o = /** @type {Record<string, unknown>} */ (rawRoot);
+  const n = Number(o.cycle_length ?? o.cycleLength);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/**
  * @param {string} filePath
  * @returns {unknown | null}
  */
@@ -121,7 +178,14 @@ function readJsonOptional(filePath) {
  */
 export function loadYoteiLabels() {
   /** @type {YoteiLabels} */
-  const empty = { maps: {}, zones: {}, zonesByMap: {}, challengeCards: {} };
+  const empty = {
+    maps: {},
+    zones: {},
+    zonesByMap: {},
+    challengeCards: {},
+    scheduleByMapSlug: {},
+    cycleLength: null,
+  };
 
   const rawEn = readJsonOptional(ROTATION_YOTEI_EN_PATH);
   const rawRu = readJsonOptional(ROTATION_YOTEI_RU_PATH);
@@ -200,7 +264,31 @@ export function loadYoteiLabels() {
     if (!challengeCards[slug].thumbnailUrl && thumbnailUrl) challengeCards[slug].thumbnailUrl = thumbnailUrl;
   }
 
-  return { maps, zones, zonesByMap, challengeCards };
+  /** @type {Record<string, Array<{ week: number, roundChallenges: string[] | null }>>} */
+  const scheduleByMapSlug = {};
+  for (const row of en.maps) {
+    const { slug } = mapRow(row);
+    if (!slug) continue;
+    scheduleByMapSlug[slug] = parseMapScheduledWeeks(row);
+  }
+
+  const cycleLength = parseCycleLength(rawEn) ?? parseCycleLength(rawRu);
+
+  return { maps, zones, zonesByMap, challengeCards, scheduleByMapSlug, cycleLength };
+}
+
+/**
+ * Расписание выживания по неделям цикла для карты (из `maps[].scheduled_weeks` в EN JSON).
+ *
+ * @param {YoteiLabels} labels
+ * @param {string} mapSlug
+ * @returns {Array<{ week: number, roundChallenges: string[] | null }>}
+ */
+export function getYoteiMapScheduledWeeks(labels, mapSlug) {
+  const key = String(mapSlug ?? '').trim();
+  if (!key) return [];
+  const rows = labels.scheduleByMapSlug[key];
+  return Array.isArray(rows) ? [...rows] : [];
 }
 
 /**

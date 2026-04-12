@@ -1,39 +1,148 @@
 {
+  "cycle_length": 12,
   "maps": [
     {
       "slug": "broken-castle",
       "name": "The Oni (Broken Castle)",
       "zones": [
-        { "location": "Foundry", "zone": "Foundry" },
-        { "location": "Burned Garden", "zone": "Burned Garden" },
-        { "location": "Keep", "zone": "Keep" }
+        {
+          "location": "Foundry",
+          "zone": "Foundry",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        },
+        {
+          "location": "Burned Garden",
+          "zone": "Burned Garden",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        },
+        {
+          "location": "Keep",
+          "zone": "Keep",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        }
+      ],
+      "scheduled_weeks": [
+        {
+          "week": 4,
+          "round_challenges": [
+            "lose-location",
+            "lose-location",
+            "lose-location",
+            "lose-location"
+          ]
+        },
+        { "week": 8, "round_challenges": null },
+        { "week": 12, "round_challenges": null }
       ]
     },
     {
       "slug": "river-village",
       "name": "The Spider (River Village)",
       "zones": [
-        { "location": "Beach", "zone": "Beach" },
-        { "location": "Rice Paddies", "zone": "Rice Paddies" },
-        { "location": "Village", "zone": "Village" }
+        {
+          "location": "Beach",
+          "zone": "Beach",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        },
+        {
+          "location": "Rice Paddies",
+          "zone": "Rice Paddies",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        },
+        {
+          "location": "Village",
+          "zone": "Village",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        }
+      ],
+      "scheduled_weeks": [
+        {
+          "week": 3,
+          "round_challenges": [
+            "spirit-healing-drunk",
+            "extremely-fast-attacks",
+            "ghost-health-drain",
+            "spirit-healing-drunk"
+          ]
+        },
+        { "week": 7, "round_challenges": null },
+        { "week": 11, "round_challenges": null }
       ]
     },
     {
       "slug": "frozen-valley",
       "name": "The Kitsune (Frozen Valley)",
       "zones": [
-        { "location": "Waterfall", "zone": "Waterfall" },
-        { "location": "Hillside", "zone": "Hillside" },
-        { "location": "Armory", "zone": "Armory" }
+        {
+          "location": "Waterfall",
+          "zone": "Waterfall",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        },
+        {
+          "location": "Hillside",
+          "zone": "Hillside",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        },
+        {
+          "location": "Armory",
+          "zone": "Armory",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        }
+      ],
+      "scheduled_weeks": [
+        {
+          "week": 1,
+          "round_challenges": [
+            "lose-location",
+            "lose-location",
+            "lose-location",
+            "lose-location"
+          ]
+        },
+        {
+          "week": 5,
+          "round_challenges": [
+            "max-health-significantly-reduced",
+            "reviving-ghosts-much-longer",
+            "ghost-weapon-cooldowns-increased",
+            "unique-enemy-ambush"
+          ]
+        },
+        { "week": 9, "round_challenges": null }
       ]
     },
     {
       "slug": "hidden-temple",
       "name": "The Snake (Hidden Temple)",
       "zones": [
-        { "location": "Pagoda", "zone": "Pagoda" },
-        { "location": "Cemetery", "zone": "Cemetery" },
-        { "location": "Courtyard", "zone": "Courtyard" }
+        {
+          "location": "Pagoda",
+          "zone": "Pagoda",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        },
+        {
+          "location": "Cemetery",
+          "zone": "Cemetery",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        },
+        {
+          "location": "Courtyard",
+          "zone": "Courtyard",
+          "spawn": { "left": "Left", "middle": "Middle", "right": "Right" }
+        }
+      ],
+      "scheduled_weeks": [
+        {
+          "week": 2,
+          "round_challenges": [
+            "ranged-last-hit",
+            "much-more-damage",
+            "increased-cooldowns",
+            "unique-enemy-ambush"
+          ]
+        },
+        { "week": 6, "round_challenges": null },
+        { "week": 10, "round_challenges": null }
       ]
     }
   ],
@@ -74,9 +183,9 @@
       "emoji": "<:cards_ghost_health_drain:1491886099016978492>"
     },
     {
-      "slug": "НАДО ДОБАВИТЬ",
-      "line": "Восстановление умений роли занимает больше времени",
-      "emoji": "<:cards_todo1:1491887227846922443>"
+      "slug": "increased-cooldowns",
+      "line": "Role Ability cooldowns are increased",
+      "emoji": "<:cards_increased_cooldowns:1491887227846922443>"
     },
     {
       "slug": "max-health-significantly-reduced",
@@ -92,11 +201,6 @@
       "slug": "ghost-weapon-cooldowns-increased",
       "line": "Ghost Weapon cooldowns are increased",
       "emoji": "<:cards_ghost_weapon_cooldowns_inc:1491887402094956636>"
-    },
-    {
-      "slug": "unique-enemy-ambush",
-      "line": "Unique Enemy Ambush",
-      "emoji": "<:cards_unique_enemy_ambush:1491884779543465994>"
     }
   ]
 }
