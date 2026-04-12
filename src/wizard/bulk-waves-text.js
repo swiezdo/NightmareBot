@@ -9,6 +9,14 @@ import { t } from '../i18n/strings.js';
 import { SLOTS_PER_WAVE, TOTAL_WAVES } from './constants.js';
 import { setWaveCell } from './grid.js';
 import { appendFlowSuffix } from './wave-custom-id.js';
+import { getWaveGridSpec } from './game-geometry.js';
+import { getYoteiMapZoneRows, YOTEI_SPAWN_SLUGS } from '../data/yotei-map-zones.js';
+
+/**
+ * @typedef {import('../data/yotei-labels.js').YoteiLabels} YoteiLabels
+ * @typedef {{ en: object[], ru: object[], weeksList: object[] }} TsushimaRotations
+ * @typedef {{ rotations: TsushimaRotations, yoteiLabels: YoteiLabels | null }} WizardBulkContext
+ */
 
 const DISCORD_MAX = 2000;
 const EMBED_DESC_MAX = 4096;
@@ -240,6 +248,107 @@ export function buildExampleWaveLines(catalog, maxWaves = 3) {
   return lines;
 }
 
+/**
+ * @param {SpawnCatalogEntry[]} catalog
+ * @param {number} [maxWaves]
+ */
+export function buildExampleYoteiWaveLines(catalog, maxWaves = 4) {
+  if (catalog.length === 0) return [];
+  const spec = getWaveGridSpec('yotei');
+  const n = Math.min(Math.max(1, maxWaves), spec.totalWaves);
+  let idx = 0;
+  /** @type {string[]} */
+  const lines = [];
+  for (let w = 1; w <= n; w++) {
+    const cnt = spec.slotsForWave(w);
+    const slots = [];
+    for (let s = 0; s < cnt; s++) {
+      slots.push(catalog[idx % catalog.length].displayLine);
+      idx++;
+    }
+    lines.push(`${w}. ${slots.join(', ')}`);
+  }
+  return lines;
+}
+
+/**
+ * @param {string} mapSlug
+ * @param {'en' | 'ru'} locale
+ * @returns {SpawnCatalogEntry[]}
+ */
+export function buildYoteiSpawnCatalog(mapSlug, locale) {
+  const rows = getYoteiMapZoneRows(String(mapSlug ?? '').trim());
+  /** @type {SpawnCatalogEntry[]} */
+  const out = [];
+  for (const z of rows) {
+    const zoneEn = z.location;
+    const zoneRu = z.zoneRu || z.zoneEn;
+    const zoneLabelEn = z.zoneEn;
+    const zoneLabelRu = z.zoneRu;
+    const triples = [
+      { en: z.spawnLeftEn, ru: z.spawnLeftRu },
+      { en: z.spawnMiddleEn, ru: z.spawnMiddleRu },
+      { en: z.spawnRightEn, ru: z.spawnRightRu },
+    ];
+    const nonempty = triples.filter(
+      (t) => String(t.en ?? '').trim() || String(t.ru ?? '').trim(),
+    );
+    for (let ti = 0; ti < triples.length; ti++) {
+      const sp = triples[ti];
+      const spawnSlug = YOTEI_SPAWN_SLUGS[ti];
+      const se = String(sp.en ?? '').trim();
+      const sr = String(sp.ru ?? '').trim() || se;
+      if (!se && !sr) continue;
+      const displayLine =
+        locale === 'en'
+          ? `${zoneLabelEn} ${se}`.trim()
+          : `${zoneLabelRu} ${sr || se}`.trim();
+      const variants = [
+        `${zoneLabelEn} ${se}`,
+        `${zoneLabelRu} ${sr}`,
+        `${zoneLabelEn} ${sr}`,
+        `${zoneLabelRu} ${se}`,
+        `${zoneEn} ${se}`,
+        `${zoneEn} ${sr}`,
+        `${zoneLabelEn} ${spawnSlug}`,
+        `${zoneLabelRu} ${spawnSlug}`,
+        `${zoneEn} ${spawnSlug}`,
+      ];
+      const keyNorms = Array.from(new Set(variants.map((x) => normToken(x)).filter(Boolean)));
+      out.push({
+        zoneEn,
+        zoneRu,
+        spawnEn: spawnSlug,
+        spawnRu: sr,
+        displayLine,
+        keyNorms,
+      });
+    }
+    if (nonempty.length > 1) {
+      /** @type {Set<string>} */
+      const zoneOnlyNorms = new Set();
+      const de = normToken(zoneLabelEn);
+      const dr = normToken(zoneLabelRu);
+      const dl = normToken(zoneEn);
+      if (de) zoneOnlyNorms.add(de);
+      if (dr) zoneOnlyNorms.add(dr);
+      if (dl) zoneOnlyNorms.add(dl);
+      if (zoneOnlyNorms.size > 0) {
+        const displayLine = locale === 'en' ? zoneLabelEn : zoneLabelRu;
+        out.push({
+          zoneEn,
+          zoneRu,
+          spawnEn: '',
+          spawnRu: '',
+          displayLine,
+          keyNorms: [...zoneOnlyNorms],
+        });
+      }
+    }
+  }
+  return out;
+}
+
 const LINE_RE = /^\s*(\d+)\s*\.\s*(.+)$/;
 
 /**
@@ -342,31 +451,150 @@ export function parseBulkWavesText(text, catalog) {
 }
 
 /**
+ * @param {string} text
+ * @param {SpawnCatalogEntry[]} catalog
+ */
+export function parseBulkYoteiWavesText(text, catalog) {
+  const matchers = buildSortedMatchersWithZoneOnly(catalog);
+  const spec = getWaveGridSpec('yotei');
+  /** @type {Map<number, string[]>} */
+  const waveMap = new Map();
+
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const m = trimmed.match(LINE_RE);
+    if (!m) {
+      return {
+        ok: false,
+        kind: 'bad_line',
+        raw: text,
+        badLine: trimmed,
+      };
+    }
+    const n = Number(m[1]);
+    if (!Number.isInteger(n) || n < 1 || n > spec.totalWaves) {
+      return { ok: false, kind: 'bad_wave_num', raw: text, wave: n, game: 'yotei' };
+    }
+    if (waveMap.has(n)) {
+      return { ok: false, kind: 'dup_wave', raw: text, wave: n };
+    }
+    const rest = m[2].trim();
+    const parts = rest.split(',').map((p) => p.trim()).filter(Boolean);
+    const need = spec.slotsForWave(n);
+    if (parts.length !== need) {
+      return {
+        ok: false,
+        kind: 'bad_slot_count',
+        raw: text,
+        wave: n,
+        parts,
+        expected: need,
+        game: 'yotei',
+      };
+    }
+    waveMap.set(n, parts);
+  }
+
+  if (waveMap.size !== spec.totalWaves) {
+    return {
+      ok: false,
+      kind: 'missing_waves',
+      raw: text,
+      got: [...waveMap.keys()].sort((a, b) => a - b),
+      game: 'yotei',
+    };
+  }
+  for (let w = 1; w <= spec.totalWaves; w++) {
+    if (!waveMap.has(w)) {
+      return {
+        ok: false,
+        kind: 'missing_waves',
+        raw: text,
+        got: [...waveMap.keys()].sort((a, b) => a - b),
+        game: 'yotei',
+      };
+    }
+  }
+
+  /** @type {{ wave: number, slotIdx: number, token: string }[]} */
+  const slotErrors = [];
+  /** @type {{ w: number, s: number, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string }[]} */
+  const assignments = [];
+
+  for (let w = 1; w <= spec.totalWaves; w++) {
+    const parts = /** @type {string[]} */ (waveMap.get(w));
+    const maxS = spec.slotsForWave(w);
+    for (let si = 0; si < maxS; si++) {
+      const token = parts[si];
+      const cell = matchSlotTokenAllowUnknownSpawn(token, matchers);
+      if (!cell) {
+        slotErrors.push({ wave: w, slotIdx: si, token });
+      } else {
+        assignments.push({
+          w,
+          s: si + 1,
+          zoneEn: cell.zoneEn,
+          zoneRu: cell.zoneRu,
+          spawnEn: cell.spawnEn,
+          spawnRu: cell.spawnRu,
+        });
+      }
+    }
+  }
+
+  if (slotErrors.length > 0) {
+    return {
+      ok: false,
+      kind: 'bad_slots',
+      raw: text,
+      waveMap,
+      slotErrors,
+      game: 'yotei',
+    };
+  }
+
+  return { ok: true, assignments, waveMap };
+}
+
+/**
  * @param {object} result
  * @param {'en' | 'ru'} locale
+ * @param {'tsushima' | 'yotei'} [game]
  */
-export function formatBulkParseFailure(result, locale) {
+export function formatBulkParseFailure(result, locale, game = 'tsushima') {
   const loc = locale ?? 'en';
+  const g = result.game === 'yotei' ? 'yotei' : game;
   const esc = (x) => escapeDiscordBoldSegment(x);
   if (result.kind === 'bad_line') {
     const line = esc(result.badLine ?? '');
     return `${t(loc, 'bulk_err_bad_line')}\n**${line}**`;
   }
   if (result.kind === 'bad_wave_num') {
-    return `${t(loc, 'bulk_err_bad_wave_num')} (${result.wave})`;
+    return g === 'yotei'
+      ? `${t(loc, 'bulk_err_bad_wave_num_yotei')} (${result.wave})`
+      : `${t(loc, 'bulk_err_bad_wave_num')} (${result.wave})`;
   }
   if (result.kind === 'dup_wave') {
     return `${t(loc, 'bulk_err_dup_wave')} (${result.wave})`;
   }
   if (result.kind === 'bad_slot_count') {
     const w = result.wave;
+    if (g === 'yotei' && result.expected != null) {
+      return t(loc, 'bulk_err_bad_slot_count_yotei')
+        .replace('{wave}', String(w))
+        .replace('{expected}', String(result.expected));
+    }
     return t(loc, 'bulk_err_bad_slot_count').replace('{wave}', String(w));
   }
   if (result.kind === 'missing_waves') {
-    return t(loc, 'bulk_err_missing_waves');
+    return g === 'yotei' ? t(loc, 'bulk_err_missing_waves_yotei') : t(loc, 'bulk_err_missing_waves');
   }
   if (result.kind === 'bad_slots') {
-    const echo = formatSlotErrorsEcho(result.waveMap, result.slotErrors);
+    const echo =
+      g === 'yotei'
+        ? formatYoteiSlotErrorsEcho(result.waveMap, result.slotErrors)
+        : formatSlotErrorsEcho(result.waveMap, result.slotErrors);
     const head = t(loc, 'bulk_err_bad_slots');
     const block = `${head}\n\n${echo}`;
     return block.length > EMBED_DESC_MAX
@@ -381,6 +609,27 @@ export function formatSlotErrorsEcho(waveMap, slotErrors) {
   /** @type {string[]} */
   const lines = [];
   for (let w = 1; w <= TOTAL_WAVES; w++) {
+    const parts = /** @type {string[]} */ (waveMap.get(w));
+    const formatted = parts.map((p, si) => {
+      const seg = escapeDiscordBoldSegment(p);
+      if (errKey.has(`${w}:${si}`)) return `**${seg}**`;
+      return seg;
+    });
+    lines.push(`${w}. ${formatted.join(', ')}`);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * @param {Map<number, string[]>} waveMap
+ * @param {{ wave: number, slotIdx: number, token: string }[]} slotErrors
+ */
+export function formatYoteiSlotErrorsEcho(waveMap, slotErrors) {
+  const errKey = new Set(slotErrors.map((e) => `${e.wave}:${e.slotIdx}`));
+  const spec = getWaveGridSpec('yotei');
+  /** @type {string[]} */
+  const lines = [];
+  for (let w = 1; w <= spec.totalWaves; w++) {
     const parts = /** @type {string[]} */ (waveMap.get(w));
     const formatted = parts.map((p, si) => {
       const seg = escapeDiscordBoldSegment(p);
@@ -411,20 +660,25 @@ export function applyBulkAssignments(draft, assignments) {
  * @param {'en' | 'ru'} locale
  * @param {SpawnCatalogEntry[]} catalog
  * @param {string[]} exampleLines
+ * @param {'tsushima' | 'yotei'} [game]
  */
-function buildInstructionBody(locale, catalog, exampleLines) {
+function buildInstructionBody(locale, catalog, exampleLines, game = 'tsushima') {
   const lines = [];
   const intro = t(locale, 'bulk_intro').trim();
   if (intro) {
     lines.push(intro);
     lines.push('');
   }
-  lines.push(t(locale, 'bulk_spawn_names_header'));
+  lines.push(
+    game === 'yotei' ? t(locale, 'bulk_spawn_names_header_yotei') : t(locale, 'bulk_spawn_names_header'),
+  );
   for (const e of catalog) {
     lines.push(`> ${e.displayLine}`);
   }
   lines.push('');
-  lines.push(t(locale, 'bulk_format_header'));
+  lines.push(
+    game === 'yotei' ? t(locale, 'bulk_format_header_yotei') : t(locale, 'bulk_format_header'),
+  );
   lines.push('```');
   for (const el of exampleLines) {
     lines.push(el);
@@ -440,10 +694,12 @@ function buildInstructionBody(locale, catalog, exampleLines) {
  * @param {string} body
  * @param {'en' | 'ru'} locale
  * @param {number} maxLen
+ * @param {'tsushima' | 'yotei'} [game]
  */
-function shrinkBodyIfNeeded(body, locale, maxLen) {
+function shrinkBodyIfNeeded(body, locale, maxLen, game = 'tsushima') {
   if (body.length <= maxLen) return body;
-  const sep = t(locale, 'bulk_format_header');
+  const sep =
+    game === 'yotei' ? t(locale, 'bulk_format_header_yotei') : t(locale, 'bulk_format_header');
   const i = body.indexOf(sep);
   if (i < 0) return truncateTo(body, maxLen);
   const head = body.slice(0, i).trimEnd();
@@ -475,6 +731,29 @@ function truncateTo(s, max) {
  * @param {object} session
  * @param {{ en: object[], ru: object[], weeksList: object[] }} rotations
  */
+/**
+ * @param {object} session
+ * @param {string} mapSlug
+ */
+export function buildYoteiBulkInstructionMain(session, mapSlug) {
+  const locale = /** @type {'en' | 'ru'} */ (session.locale ?? 'en');
+  const slug = String(mapSlug ?? '').trim();
+  if (!slug) {
+    return {
+      ok: false,
+      content:
+        locale === 'ru'
+          ? 'Не выбрана карта Yōtei (map_slug).'
+          : 'Yōtei map (map_slug) is not set.',
+    };
+  }
+  const catalog = buildYoteiSpawnCatalog(slug, locale);
+  const exampleLines = buildExampleYoteiWaveLines(catalog, 4);
+  let body = buildInstructionBody(locale, catalog, exampleLines, 'yotei');
+  body = shrinkBodyIfNeeded(body, locale, DISCORD_MAX - 400, 'yotei');
+  return { ok: true, content: body, catalog };
+}
+
 export function buildBulkInstructionMain(session, rotations) {
   const locale = /** @type {'en' | 'ru'} */ (session.locale ?? 'en');
   const ctx = findWeekContext(rotations.en, rotations.ru, session.draft.week);
@@ -490,18 +769,34 @@ export function buildBulkInstructionMain(session, rotations) {
   const { enMap, ruMap } = ctx;
   const catalog = buildSpawnCatalog(enMap, ruMap, locale);
   const exampleLines = buildExampleWaveLines(catalog, 3);
-  let body = buildInstructionBody(locale, catalog, exampleLines);
-  body = shrinkBodyIfNeeded(body, locale, DISCORD_MAX - 400);
+  let body = buildInstructionBody(locale, catalog, exampleLines, 'tsushima');
+  body = shrinkBodyIfNeeded(body, locale, DISCORD_MAX - 400, 'tsushima');
   return { ok: true, content: body, catalog };
 }
 
 /**
  * @param {object} session
- * @param {{ en: object[], ru: object[], weeksList: object[] }} rotations
+ * @param {WizardBulkContext} ctx
  */
-export function buildBulkInputPayload(session, rotations) {
+export function buildBulkInputPayload(session, ctx) {
   const locale = /** @type {'en' | 'ru'} */ (session.locale ?? 'en');
-  const main = buildBulkInstructionMain(session, rotations);
+  const { rotations } = ctx;
+  /** @type {{ ok: boolean, content: string, catalog?: SpawnCatalogEntry[] }} */
+  let main;
+  if (session.game === 'yotei') {
+    const slug = String(session.draft?.map_slug ?? '').trim();
+    const cw = Number(session.draft?.week ?? 0);
+    if (!slug || cw < 1) {
+      main = {
+        ok: false,
+        content: t(locale, 'bulk_yotei_need_week_map'),
+      };
+    } else {
+      main = buildYoteiBulkInstructionMain(session, slug);
+    }
+  } else {
+    main = buildBulkInstructionMain(session, rotations);
+  }
   if (!main.ok) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()

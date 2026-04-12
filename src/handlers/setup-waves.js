@@ -13,7 +13,17 @@ import {
   normalizeSpawns,
   buildDraftFromWeek,
   createEmptyDraft,
+  createEmptyYoteiDraft,
 } from '../data/rotation.js';
+import {
+  loadYoteiLabels,
+  buildYoteiDraftForCycleWeek,
+} from '../data/yotei-labels.js';
+import {
+  getYoteiMapZoneRows,
+  YOTEI_SPAWN_SLUGS,
+  labelForYoteiSpawnSlug,
+} from '../data/yotei-map-zones.js';
 import { loadSession, saveSession, deleteSession } from '../db/session.js';
 import { editExpiredWizardMessageFromInteraction } from '../utils/session-expired-wizard.js';
 import { appendFlowSuffix, stripFlowSuffix } from '../wizard/wave-custom-id.js';
@@ -29,10 +39,22 @@ import {
   pushTsushimaToNightmare,
   summarizeNightmareApiFailure,
 } from '../api/nightmare-tsushima.js';
-import { GRID_PAGE_COUNT, SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
+import {
+  fetchYoteiRotationRead,
+  buildDraftFromYoteiReadApi,
+} from '../api/nightmare-yotei.js';
+import { getWaveGridSpec } from '../wizard/game-geometry.js';
 import { isAllowedForSetupCommands } from '../utils/setup-access.js';
 
 const DISCORD_CONTENT_MAX = 2000;
+
+/**
+ * @param {{ en: object[], ru: object[], weeksList: object[] }} rotations
+ * @param {import('../data/yotei-labels.js').YoteiLabels} yoteiLabels
+ */
+function wizardUiContext(rotations, yoteiLabels) {
+  return { rotations, yoteiLabels };
+}
 
 /**
  * @param {import('discord.js').ModalSubmitInteraction} interaction
@@ -119,6 +141,62 @@ async function publishTsushimaAfterCredits(interaction, session, loc) {
   } catch (e) {
     console.error('publishTsushimaAfterCredits', e);
     await interaction.editReply({ content: t(loc, 'api_network_error') });
+  }
+}
+
+/**
+ * После модалки Credits для Yōtei: без PUT, закрыть сессию и обновить панель.
+ *
+ * @param {import('discord.js').ModalSubmitInteraction} interaction
+ * @param {object} session
+ * @param {'en' | 'ru'} loc
+ */
+async function finishYoteiAfterCredits(interaction, session, loc) {
+  const creditsFinal = String(session.draft?.credits ?? '').trim() || DEFAULT_TSUSHIMA_CREDIT_TEXT;
+
+  await interaction.deferReply();
+
+  deleteSession(interaction.user.id, session.sourceCommand);
+
+  let body = `${t(loc, 'yotei_publish_not_implemented')}\n\n${t(loc, 'yotei_credits_local_note')}`;
+  const room = DISCORD_CONTENT_MAX - body.length - 2;
+  if (room > 20 && creditsFinal) {
+    const snippet =
+      creditsFinal.length > room ? `${creditsFinal.slice(0, room - 1)}…` : creditsFinal;
+    body = `${body}\n${snippet}`;
+  }
+  if (body.length > DISCORD_CONTENT_MAX) {
+    body = `${body.slice(0, DISCORD_CONTENT_MAX - 1)}…`;
+  }
+
+  await interaction.editReply({ content: body });
+
+  const wizardEditPayload = {
+    content: body,
+    components: [],
+    embeds: [],
+  };
+
+  /** @type {import('discord.js').Message | null} */
+  let wizardMsg = null;
+  if (interaction.isFromMessage()) {
+    wizardMsg = interaction.message;
+  } else if (session.messageId && interaction.channel?.isTextBased()) {
+    try {
+      wizardMsg = await interaction.channel.messages.fetch(session.messageId);
+    } catch {
+      wizardMsg = null;
+    }
+  }
+
+  if (wizardMsg && !wizardMsg.flags.has(MessageFlags.Ephemeral)) {
+    try {
+      await wizardMsg.edit(wizardEditPayload);
+    } catch (e) {
+      if (!isDiscordUnknownMessage(e)) {
+        console.error('edit wizard after yotei credits', e);
+      }
+    }
   }
 }
 
@@ -217,6 +295,9 @@ async function dismissOtherFlowSession(interaction, otherFlow) {
 
 function newSession(userId, game, options = {}) {
   const sourceCommand = options.sourceCommand ?? 'setup-waves';
+  const defaultDraft =
+    options.draft ??
+    (game === 'yotei' ? createEmptyYoteiDraft() : createEmptyDraft());
   return {
     userId,
     game,
@@ -224,7 +305,7 @@ function newSession(userId, game, options = {}) {
     locale: null,
     messageId: null,
     channelId: null,
-    draft: options.draft ?? createEmptyDraft(),
+    draft: defaultDraft,
     uiStep: 'lang',
     gridPage: 0,
     pendingWave: null,
@@ -251,10 +332,12 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   if (!(await ensureDm(interaction))) return;
 
   const rotations = loadRotations();
+  const yoteiLabels = loadYoteiLabels();
+  const uiCtx = () => wizardUiContext(rotations, yoteiLabels);
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-waves') {
     const game = interaction.options.getString('game', true);
-    if (game !== 'tsushima') {
+    if (game !== 'tsushima' && game !== 'yotei') {
       await interaction.reply({ content: t('en', 'game_not_available') });
       return;
     }
@@ -271,7 +354,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       session.channelId = prev.channelId;
     }
 
-    const payload = buildMessagePayload(session, rotations);
+    const payload = buildMessagePayload(session, uiCtx());
 
     if (session.messageId && interaction.channel?.isTextBased()) {
       try {
@@ -315,13 +398,116 @@ export async function handleSetupWavesInteraction(interaction, _client) {
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'edit-waves') {
     const game = interaction.options.getString('game', true);
-    if (game !== 'tsushima') {
+    if (game !== 'tsushima' && game !== 'yotei') {
       await interaction.reply({ content: t('en', 'game_not_available') });
       return;
     }
 
     const loc = isAllowedForSetupCommands(interaction.user.id) ? 'ru' : 'en';
     await interaction.deferReply();
+
+    if (game === 'yotei') {
+      const tokenY = String(process.env.NIGHTMARE_CLUB_YOTEI_TOKEN ?? '').trim();
+      if (!tokenY) {
+        await interaction.editReply({ content: t(loc, 'waves_yotei_api_not_configured') });
+        return;
+      }
+
+      /** @type {unknown} */
+      let dataY;
+      try {
+        const r = await fetchYoteiRotationRead({ token: tokenY });
+        if (r.status === 401) {
+          await interaction.editReply({ content: t(loc, 'waves_yotei_read_401') });
+          return;
+        }
+        if (!r.ok) {
+          await interaction.editReply({
+            content: t(loc, 'waves_yotei_read_http').replace('{status}', String(r.status)),
+          });
+          return;
+        }
+        dataY = r.data;
+      } catch (e) {
+        const isTimeout =
+          e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
+        await interaction.editReply({
+          content: isTimeout ? t(loc, 'waves_yotei_read_timeout') : t(loc, 'waves_yotei_read_network'),
+        });
+        return;
+      }
+
+      const builtY = buildDraftFromYoteiReadApi(dataY, yoteiLabels);
+      if (!builtY.ok) {
+        const key =
+          builtY.reason === 'empty_maps' ? 'edit_yotei_missing' : 'edit_yotei_invalid';
+        await interaction.editReply({ content: t(loc, key) });
+        return;
+      }
+
+      await dismissOtherFlowSession(interaction, 'setup-waves');
+
+      const prevLoadY = loadSession(interaction.user.id, 'edit-waves');
+      if (prevLoadY.status === 'expired') {
+        await editExpiredWizardMessageFromInteraction(interaction, prevLoadY);
+      }
+      const prevY = prevLoadY.status === 'ok' ? prevLoadY.session : null;
+      const sessionY = newSession(interaction.user.id, game, {
+        sourceCommand: 'edit-waves',
+        draft: builtY.draft,
+      });
+      if (prevY?.messageId && prevY?.channelId) {
+        sessionY.messageId = prevY.messageId;
+        sessionY.channelId = prevY.channelId;
+      }
+
+      const payloadY = buildMessagePayload(sessionY, uiCtx());
+
+      if (sessionY.messageId && interaction.channel?.isTextBased()) {
+        try {
+          try {
+            const oldMsg = await interaction.channel.messages.fetch(sessionY.messageId);
+            await oldMsg.delete();
+          } catch {
+            /* already deleted or unavailable */
+          }
+          sessionY.messageId = null;
+          sessionY.channelId = null;
+
+          let ack = `${t('ru', 'edit_panel_reopened')} · ${t('en', 'edit_panel_reopened')}`;
+          if (builtY.multiMap) {
+            ack = `${ack}\n${t(loc, 'edit_yotei_multi_map_note')}`;
+          }
+          await interaction.editReply({ content: ack });
+
+          /** @type {import('discord.js').Message} */
+          let panelMsg;
+          try {
+            panelMsg = await interaction.followUp({ ...payloadY, fetchReply: true });
+          } catch (e) {
+            console.error('edit-waves yotei followUp wizard panel', e);
+            panelMsg = await interaction.channel.send(payloadY);
+          }
+          sessionY.messageId = panelMsg.id;
+          sessionY.channelId = panelMsg.channelId;
+          saveSession(sessionY);
+          return;
+        } catch (e) {
+          console.error('edit-waves yotei reopen panel', e);
+          sessionY.messageId = null;
+          sessionY.channelId = null;
+        }
+      }
+
+      const msgY = await interaction.editReply({ ...payloadY });
+      sessionY.messageId = msgY.id;
+      sessionY.channelId = msgY.channelId;
+      saveSession(sessionY);
+      if (builtY.multiMap) {
+        await interaction.followUp({ content: t(loc, 'edit_yotei_multi_map_note') });
+      }
+      return;
+    }
 
     const token = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
     if (!token) {
@@ -381,7 +567,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       session.channelId = prev.channelId;
     }
 
-    const payload = buildMessagePayload(session, rotations);
+    const payload = buildMessagePayload(session, uiCtx());
 
     if (session.messageId && interaction.channel?.isTextBased()) {
       try {
@@ -454,6 +640,12 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     const locModal = /** @type {'en' | 'ru'} */ (sessionModal.locale ?? 'en');
     const rawCredits = interaction.fields.getTextInputValue('credits') ?? '';
     sessionModal.draft.credits = rawCredits.trim() || DEFAULT_TSUSHIMA_CREDIT_TEXT;
+
+    if (sessionModal.game === 'yotei') {
+      await finishYoteiAfterCredits(interaction, sessionModal, locModal);
+      return;
+    }
+
     saveSession(sessionModal);
     await publishTsushimaAfterCredits(interaction, sessionModal, locModal);
     return;
@@ -487,18 +679,45 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
 
   if (interaction.isStringSelectMenu() && id === 'waves:week' && flow === 'setup-waves') {
+    const loc = /** @type {'en' | 'ru'} */ (session.locale);
+    if (session.game === 'yotei') {
+      const raw = interaction.values[0] ?? '';
+      const m = /^yotei:(\d+):(.+)$/.exec(raw);
+      if (!m) {
+        await interaction.deferUpdate();
+        await editWizardMessageOrRecover(
+          interaction,
+          session,
+          mergePayloadContent(t(loc, 'week_select_failed'), buildMessagePayload(session, uiCtx())),
+        );
+        return;
+      }
+      const weekNum = Number(m[1]);
+      const mapSlug = String(m[2] ?? '').trim();
+      session.draft = buildYoteiDraftForCycleWeek(yoteiLabels, weekNum, mapSlug);
+      session.uiStep = 'grid';
+      session.gridPage = 0;
+      saveSession(session);
+      await interaction.deferUpdate();
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, uiCtx()),
+      );
+      return;
+    }
+
     const code = interaction.values[0];
     const ctx = findWeekContext(rotations.en, rotations.ru, code);
     if (!ctx) {
-      const loc = /** @type {'en' | 'ru'} */ (session.locale);
       await interaction.deferUpdate();
-      const payload = buildMessagePayload(session, rotations);
+      const payload = buildMessagePayload(session, uiCtx());
       await editWizardMessageOrRecover(
         interaction,
         session,
@@ -514,18 +733,19 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
 
   if (id === 'waves:bulk:open') {
-    if (session.uiStep !== 'grid' || isGridComplete(session.draft)) {
+    const gridGame = session.game === 'yotei' ? 'yotei' : 'tsushima';
+    if (session.uiStep !== 'grid' || isGridComplete(session.draft, gridGame)) {
       await interaction.deferUpdate();
       await editWizardMessageOrRecover(
         interaction,
         session,
-        buildMessagePayload(session, rotations),
+        buildMessagePayload(session, uiCtx()),
       );
       return;
     }
@@ -536,7 +756,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
@@ -547,7 +767,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       await editWizardMessageOrRecover(
         interaction,
         session,
-        buildMessagePayload(session, rotations),
+        buildMessagePayload(session, uiCtx()),
       );
       return;
     }
@@ -558,23 +778,25 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
 
   if (id === 'waves:p:prev' || id === 'waves:p:next') {
+    const gridGame = session.game === 'yotei' ? 'yotei' : 'tsushima';
+    const maxPage = getWaveGridSpec(gridGame).gridPageCount - 1;
     const cur = session.gridPage ?? 0;
     session.gridPage =
       id === 'waves:p:prev'
         ? Math.max(0, cur - 1)
-        : Math.min(GRID_PAGE_COUNT - 1, cur + 1);
+        : Math.min(maxPage, cur + 1);
     saveSession(session);
     await interaction.deferUpdate();
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
@@ -583,7 +805,10 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     const [, , g, s] = id.split(':');
     const group = Number(g);
     const slot = Number(s);
-    if (group < 1 || group > TOTAL_WAVES || slot < 1 || slot > SLOTS_PER_WAVE) {
+    const gridGame = session.game === 'yotei' ? 'yotei' : 'tsushima';
+    const spec = getWaveGridSpec(gridGame);
+    const maxSlot = group >= 1 && group <= spec.totalWaves ? spec.slotsForWave(group) : 0;
+    if (group < 1 || group > spec.totalWaves || slot < 1 || slot > maxSlot) {
       const loc = /** @type {'en' | 'ru'} */ (session.locale);
       await interaction.deferUpdate();
       try {
@@ -594,7 +819,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       await editWizardMessageOrRecover(
         interaction,
         session,
-        buildMessagePayload(session, rotations),
+        buildMessagePayload(session, uiCtx()),
       );
       return;
     }
@@ -607,7 +832,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
@@ -622,7 +847,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
@@ -635,7 +860,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
@@ -643,6 +868,36 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   if (id.startsWith('waves:z:')) {
     const zi = Number(id.split(':')[2]);
     session.pendingZoneIndex = zi;
+
+    if (session.game === 'yotei') {
+      const slug = String(session.draft.map_slug ?? '').trim();
+      const yRows = getYoteiMapZoneRows(slug);
+      const locY = /** @type {'en' | 'ru'} */ (session.locale);
+      if (!Number.isFinite(zi) || zi < 0 || !yRows[zi]) {
+        session.uiStep = 'grid';
+        session.pendingWave = null;
+        session.pendingSpawn = null;
+        session.pendingZoneIndex = null;
+        saveSession(session);
+        await interaction.deferUpdate();
+        await editWizardMessageOrRecover(
+          interaction,
+          session,
+          mergePayloadContent(t(locY, 'yotei_zone_invalid'), buildMessagePayload(session, uiCtx())),
+        );
+        return;
+      }
+      session.uiStep = 'spawn';
+      saveSession(session);
+      await interaction.deferUpdate();
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, uiCtx()),
+      );
+      return;
+    }
+
     const ctx = findWeekContext(rotations.en, rotations.ru, session.draft.week);
     if (!ctx) {
       const loc = /** @type {'en' | 'ru'} */ (session.locale);
@@ -652,7 +907,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       session.pendingZoneIndex = null;
       saveSession(session);
       await interaction.deferUpdate();
-      const payload = buildMessagePayload(session, rotations);
+      const payload = buildMessagePayload(session, uiCtx());
       await editWizardMessageOrRecover(
         interaction,
         session,
@@ -682,7 +937,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       await editWizardMessageOrRecover(
         interaction,
         session,
-        buildMessagePayload(session, rotations),
+        buildMessagePayload(session, uiCtx()),
       );
       return;
     }
@@ -693,12 +948,62 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
 
   if (id === 'waves:spawn:unknown') {
+    if (session.game === 'yotei') {
+      const slugU = String(session.draft.map_slug ?? '').trim();
+      const yRowsU = getYoteiMapZoneRows(slugU);
+      const locU = /** @type {'en' | 'ru'} */ (session.locale);
+      const ziY = session.pendingZoneIndex;
+      if (
+        ziY == null ||
+        session.pendingWave == null ||
+        session.pendingSpawn == null ||
+        !yRowsU[ziY]
+      ) {
+        session.uiStep = 'grid';
+        session.pendingWave = null;
+        session.pendingSpawn = null;
+        session.pendingZoneIndex = null;
+        saveSession(session);
+        await interaction.deferUpdate();
+        await editWizardMessageOrRecover(
+          interaction,
+          session,
+          mergePayloadContent(t(locU, 'invalid_wave_slot'), buildMessagePayload(session, uiCtx())),
+        );
+        return;
+      }
+      const zy = yRowsU[ziY];
+      setWaveCell(
+        session.draft,
+        /** @type {number} */ (session.pendingWave),
+        /** @type {number} */ (session.pendingSpawn),
+        {
+          zoneEn: zy.location,
+          zoneRu: zy.zoneRu,
+          spawnEn: '',
+          spawnRu: '',
+        },
+      );
+      session.uiStep = 'grid';
+      session.pendingWave = null;
+      session.pendingSpawn = null;
+      session.pendingZoneIndex = null;
+      saveSession(session);
+      await interaction.deferUpdate();
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, uiCtx()),
+      );
+      return;
+    }
+
     const ctxUnk = findWeekContext(rotations.en, rotations.ru, session.draft.week);
     if (
       !ctxUnk ||
@@ -713,7 +1018,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       session.pendingZoneIndex = null;
       saveSession(session);
       await interaction.deferUpdate();
-      const payload = buildMessagePayload(session, rotations);
+      const payload = buildMessagePayload(session, uiCtx());
       const prefix = !ctxUnk
         ? t(loc, 'week_not_in_rotation')
         : t(loc, 'invalid_wave_slot');
@@ -743,13 +1048,61 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
 
   if (id.startsWith('waves:s:')) {
     const si = Number(id.split(':')[2]);
+
+    if (session.game === 'yotei') {
+      const slugS = String(session.draft.map_slug ?? '').trim();
+      const yRowsS = getYoteiMapZoneRows(slugS);
+      const locS = /** @type {'en' | 'ru'} */ (session.locale);
+      const ziS = session.pendingZoneIndex;
+      if (ziS == null || !Number.isFinite(si) || si < 0 || si > 2 || !yRowsS[ziS]) {
+        session.uiStep = 'grid';
+        session.pendingWave = null;
+        session.pendingSpawn = null;
+        session.pendingZoneIndex = null;
+        saveSession(session);
+        await interaction.deferUpdate();
+        await editWizardMessageOrRecover(
+          interaction,
+          session,
+          mergePayloadContent(t(locS, 'invalid_wave_slot'), buildMessagePayload(session, uiCtx())),
+        );
+        return;
+      }
+      const zs = yRowsS[ziS];
+      const spawnSlug = YOTEI_SPAWN_SLUGS[si];
+      const locSpawn = /** @type {'en' | 'ru'} */ (session.locale);
+      setWaveCell(
+        session.draft,
+        /** @type {number} */ (session.pendingWave),
+        /** @type {number} */ (session.pendingSpawn),
+        {
+          zoneEn: zs.location,
+          zoneRu: zs.zoneRu,
+          spawnEn: spawnSlug,
+          spawnRu: labelForYoteiSpawnSlug(zs, spawnSlug, locSpawn),
+        },
+      );
+      session.uiStep = 'grid';
+      session.pendingWave = null;
+      session.pendingSpawn = null;
+      session.pendingZoneIndex = null;
+      saveSession(session);
+      await interaction.deferUpdate();
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, uiCtx()),
+      );
+      return;
+    }
+
     const ctx = findWeekContext(rotations.en, rotations.ru, session.draft.week);
     if (!ctx || session.pendingZoneIndex == null) {
       const loc = /** @type {'en' | 'ru'} */ (session.locale);
@@ -759,7 +1112,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       session.pendingZoneIndex = null;
       saveSession(session);
       await interaction.deferUpdate();
-      const payload = buildMessagePayload(session, rotations);
+      const payload = buildMessagePayload(session, uiCtx());
       const prefix = !ctx
         ? t(loc, 'week_not_in_rotation')
         : t(loc, 'invalid_wave_slot');
@@ -792,15 +1145,16 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     await editWizardMessageOrRecover(
       interaction,
       session,
-      buildMessagePayload(session, rotations),
+      buildMessagePayload(session, uiCtx()),
     );
     return;
   }
 
   if (id === 'waves:done') {
     const loc = /** @type {'en' | 'ru'} */ (session.locale ?? 'en');
+    const gridGame = session.game === 'yotei' ? 'yotei' : 'tsushima';
 
-    if (!isGridComplete(session.draft)) {
+    if (!isGridComplete(session.draft, gridGame)) {
       await interaction.deferUpdate();
       try {
         await interaction.followUp({
@@ -812,19 +1166,21 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       return;
     }
 
-    const apiUrl = getTsushimaRotationPutUrl();
-    const apiToken = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
+    if (gridGame === 'tsushima') {
+      const apiUrl = getTsushimaRotationPutUrl();
+      const apiToken = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
 
-    if (!apiUrl || !apiToken) {
-      await interaction.deferUpdate();
-      try {
-        await interaction.followUp({
-          content: t(loc, 'api_not_configured').slice(0, DISCORD_CONTENT_MAX),
-        });
-      } catch {
-        /* ignore */
+      if (!apiUrl || !apiToken) {
+        await interaction.deferUpdate();
+        try {
+          await interaction.followUp({
+            content: t(loc, 'api_not_configured').slice(0, DISCORD_CONTENT_MAX),
+          });
+        } catch {
+          /* ignore */
+        }
+        return;
       }
-      return;
     }
 
     const title = t(loc, 'credits_modal_title').slice(0, 45);

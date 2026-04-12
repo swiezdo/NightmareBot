@@ -8,17 +8,26 @@ import {
 import { strings, t } from '../i18n/strings.js';
 import { findWeekContext, normalizeSpawns } from '../data/rotation.js';
 import { isCellFilled, isGridComplete } from './grid.js';
+import { WAVES_PER_PAGE } from './constants.js';
+import { getWaveGridSpec } from './game-geometry.js';
 import {
-  GRID_PAGE_COUNT,
-  SLOTS_PER_WAVE,
-  TOTAL_WAVES,
-  WAVES_PER_PAGE,
-} from './constants.js';
+  buildYoteiCycleWeekSelectOptions,
+  loadYoteiLabels,
+  resolveYoteiChallengeCard,
+  resolveYoteiMapTitle,
+} from '../data/yotei-labels.js';
+import { getYoteiMapZoneRows, YOTEI_SPAWN_SLUGS } from '../data/yotei-map-zones.js';
 import { appendFlowSuffix } from './wave-custom-id.js';
 import { buildBulkInputPayload } from './bulk-waves-text.js';
 
 const LABEL_MAX = 100;
 const MOD_TRUNC = 120;
+
+/**
+ * @typedef {import('../data/yotei-labels.js').YoteiLabels} YoteiLabels
+ * @typedef {{ en: object[], ru: object[], weeksList: { code: string, labelEn: string, labelRu: string }[] }} TsushimaRotations
+ * @typedef {{ rotations: TsushimaRotations, yoteiLabels: YoteiLabels | null }} WizardUiContext
+ */
 
 /**
  * Escape * for Discord markdown inside *…* italics.
@@ -40,11 +49,13 @@ function trunc(s, max) {
 /**
  * @param {'en' | 'ru'} locale
  * @param {number} draftWavePage 0-based
+ * @param {import('./game-geometry.js').WizardGame} game
  */
-function formatGridPageLine(locale, draftWavePage) {
+function formatGridPageLine(locale, draftWavePage, game = 'tsushima') {
+  const tot = getWaveGridSpec(game).gridPageCount;
   return t(locale, 'grid_page')
     .replace('{cur}', String(draftWavePage + 1))
-    .replace('{tot}', String(GRID_PAGE_COUNT));
+    .replace('{tot}', String(tot));
 }
 
 /**
@@ -79,16 +90,18 @@ const ZWSP = '\u200b';
 /**
  * @param {number} W
  * @param {object} draft
+ * @param {object} session
+ * @param {import('./game-geometry.js').WizardGame} game
  */
-function waveRow(W, draft, session) {
+function waveRow(W, draft, session, game = 'tsushima') {
+  const spec = getWaveGridSpec(game);
   const row = new ActionRowBuilder();
-  for (let s = 1; s <= SLOTS_PER_WAVE; s++) {
-    const filled = isCellFilled(draft, W, s);
+  const slots = spec.slotsForWave(W);
+  for (let s = 1; s <= slots; s++) {
+    const filled = isCellFilled(draft, W, s, game);
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(
-          appendFlowSuffix(`waves:c:${W}:${s}`, session.sourceCommand),
-        )
+        .setCustomId(appendFlowSuffix(`waves:c:${W}:${s}`, session.sourceCommand))
         .setLabel(`${W}.${s}`)
         .setStyle(filled ? ButtonStyle.Success : ButtonStyle.Secondary),
     );
@@ -99,8 +112,10 @@ function waveRow(W, draft, session) {
 /**
  * Row 4: ⬅️ | [✅ Done when grid complete] | ➡️
  * @param {'en' | 'ru'} locale
+ * @param {import('./game-geometry.js').WizardGame} game
  */
-function navRow(locale, page, complete, session) {
+function navRow(locale, page, complete, session, game = 'tsushima') {
+  const spec = getWaveGridSpec(game);
   const row = new ActionRowBuilder();
 
   row.addComponents(
@@ -136,20 +151,23 @@ function navRow(locale, page, complete, session) {
       .setStyle(ButtonStyle.Primary)
       .setEmoji('➡️')
       .setLabel(ZWSP)
-      .setDisabled(page >= GRID_PAGE_COUNT - 1),
+      .setDisabled(page >= spec.gridPageCount - 1),
   );
 
   return row;
 }
 
 /**
- * @param {'en' | 'ru'} locale
  * @param {object} session
- * @param {{ en: object[], ru: object[], weeksList: { code: string, labelEn: string, labelRu: string }[] }} rotations
+ * @param {WizardUiContext} ctx
  */
-function buildMessagePayloadCore(session, rotations) {
+function buildMessagePayloadCore(session, ctx) {
+  const { rotations, yoteiLabels: ylFromCtx } = ctx;
+  const yoteiLabels = ylFromCtx ?? loadYoteiLabels();
+  const game = session.game === 'yotei' ? 'yotei' : 'tsushima';
+
   if (session.uiStep === 'bulk_input') {
-    return buildBulkInputPayload(session, rotations);
+    return buildBulkInputPayload(session, ctx);
   }
 
   if (session.uiStep === 'lang') {
@@ -174,7 +192,19 @@ function buildMessagePayloadCore(session, rotations) {
   if (session.uiStep === 'week') {
     const select = new StringSelectMenuBuilder()
       .setCustomId(appendFlowSuffix('waves:week', session.sourceCommand))
-      .setPlaceholder(trunc(t(locale, 'choose_week'), 150));
+      .setPlaceholder(trunc(t(locale, 'week_select_placeholder'), 150));
+
+    if (game === 'yotei') {
+      for (const opt of buildYoteiCycleWeekSelectOptions(yoteiLabels, locale)) {
+        const label = trunc(opt.label, LABEL_MAX);
+        const value = `yotei:${opt.week}:${opt.mapSlug}`;
+        select.addOptions(new StringSelectMenuOptionBuilder().setLabel(label).setValue(value));
+      }
+      return {
+        content: t(locale, 'choose_yotei_cycle_week'),
+        components: [new ActionRowBuilder().addComponents(select)],
+      };
+    }
 
     for (const w of rotations.weeksList) {
       const label = trunc(locale === 'en' ? w.labelEn : w.labelRu, LABEL_MAX);
@@ -190,16 +220,41 @@ function buildMessagePayloadCore(session, rotations) {
   }
 
   if (session.uiStep === 'grid') {
-    const page = Math.min(
-      Math.max(0, session.gridPage ?? 0),
-      GRID_PAGE_COUNT - 1,
-    );
+    const spec = getWaveGridSpec(game);
+    const page = Math.min(Math.max(0, session.gridPage ?? 0), spec.gridPageCount - 1);
     const base = page * WAVES_PER_PAGE;
-    const complete = isGridComplete(draft);
+    const complete = isGridComplete(draft, game);
 
     let content = t(locale, 'choose_wave');
-    content += `\n${formatGridPageLine(locale, page)}`;
-    if (draft.week) {
+    content += `\n${formatGridPageLine(locale, page, game)}`;
+
+    if (game === 'yotei') {
+      const mapTitle = resolveYoteiMapTitle(yoteiLabels, draft.map_slug, locale, draft.map_slug);
+      const wk = Number(draft.week ?? 0);
+      if (wk > 0) {
+        content += `\n**${t(locale, 'yotei_cycle_week_prefix')}** ${wk} — ${mapTitle}`;
+      } else {
+        content += `\n**${t(locale, 'week_prefix')}** ${mapTitle}`;
+      }
+      const slugs = draft.challenge_cards_slugs;
+      if (slugs === null) {
+        content += `\n${t(locale, 'yotei_challenges_unknown')}`;
+      } else if (Array.isArray(slugs) && slugs.length > 0) {
+        content += `\n**${t(locale, 'yotei_challenge_cards_prefix')}**`;
+        let cardIdx = 0;
+        for (const slug of slugs) {
+          cardIdx += 1;
+          const key = String(slug ?? '').trim();
+          if (!key) {
+            content += `\n${cardIdx}. —`;
+          } else {
+            const line = resolveYoteiChallengeCard(yoteiLabels, key, locale, '');
+            const esc = escapeDiscordItalic(trunc(line, MOD_TRUNC));
+            content += `\n${cardIdx}. *${esc}*`;
+          }
+        }
+      }
+    } else if (draft.week) {
       const mapTitle = locale === 'en' ? draft.map_name_en : draft.map_name_ru;
       const weekInTicks = t(locale, 'week_code_label').replace('{code}', draft.week);
       content += `\n**${t(locale, 'week_prefix')}** ${mapTitle} (\`${weekInTicks}\`)`;
@@ -225,23 +280,118 @@ function buildMessagePayloadCore(session, rotations) {
 
     for (let r = 0; r < WAVES_PER_PAGE; r++) {
       const W = base + r + 1;
-      if (W <= TOTAL_WAVES) rows.push(waveRow(W, draft, session));
+      if (W <= spec.totalWaves) rows.push(waveRow(W, draft, session, game));
     }
 
-    rows.push(navRow(locale, page, complete, session));
+    rows.push(navRow(locale, page, complete, session, game));
 
     return { content, components: rows };
   }
 
-  const ctx = findWeekContext(rotations.en, rotations.ru, draft.week);
-  if (!ctx) {
+  if (game === 'yotei') {
+    const slug = String(draft.map_slug ?? '').trim();
+    const yZones = getYoteiMapZoneRows(slug);
+    if (session.uiStep === 'zone') {
+      const pw = session.pendingWave;
+      const ps = session.pendingSpawn;
+      const cell =
+        pw != null && ps != null ? draft.waves[`wave_${pw}`]?.[`${ps}`] : null;
+
+      let content =
+        pw != null && ps != null
+          ? `${formatWaveSpawnHeader(locale, pw, ps)}\n${t(locale, 'choose_zone')}`
+          : t(locale, 'choose_zone');
+
+      const row = new ActionRowBuilder();
+      for (let i = 0; i < yZones.length; i++) {
+        const z = yZones[i];
+        const label = locale === 'en' ? z.zoneEn : z.zoneRu;
+        const matchesSaved =
+          cell?.zone_en &&
+          cell.zone_en === z.location &&
+          (cell.zone_ru === z.zoneRu || cell.zone_ru === z.zoneEn);
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId(appendFlowSuffix(`waves:z:${i}`, session.sourceCommand))
+            .setLabel(trunc(label, 80))
+            .setStyle(matchesSaved ? ButtonStyle.Success : ButtonStyle.Secondary),
+        );
+      }
+      return {
+        content,
+        components: [row, wizardBackRow(locale, 'grid', session)],
+      };
+    }
+
+    if (session.uiStep === 'spawn') {
+      const zi = /** @type {number} */ (session.pendingZoneIndex);
+      const z = yZones[zi];
+      const pw = session.pendingWave;
+      const ps = session.pendingSpawn;
+      const cell =
+        pw != null && ps != null ? draft.waves[`wave_${pw}`]?.[`${ps}`] : null;
+
+      const zoneNameRaw = z ? (locale === 'en' ? z.zoneEn : z.zoneRu) : '';
+      const zoneLoc = z?.location ?? '';
+      let content =
+        pw != null && ps != null
+          ? `${formatWaveSpawnHeader(locale, pw, ps)}\n**${t(locale, 'zone_line_prefix')}** ${trunc(zoneNameRaw, 300)}\n${t(locale, 'choose_spawn')}\n${t(locale, 'spawn_unknown_hint')}`
+          : `${t(locale, 'choose_spawn')}\n${t(locale, 'spawn_unknown_hint')}`;
+
+      if (!z) {
+        return {
+          content,
+          components: [wizardBackRow(locale, 'zone', session)],
+        };
+      }
+
+      const opts = [
+        { i: 0, en: z.spawnLeftEn, ru: z.spawnLeftRu },
+        { i: 1, en: z.spawnMiddleEn, ru: z.spawnMiddleRu },
+        { i: 2, en: z.spawnRightEn, ru: z.spawnRightRu },
+      ];
+      const row = new ActionRowBuilder();
+      for (const o of opts) {
+        const label = locale === 'en' ? o.en : o.ru || o.en;
+        const spawnSlug = YOTEI_SPAWN_SLUGS[o.i];
+        const matchesSaved = Boolean(cell?.spawn_en) && cell.spawn_en === spawnSlug;
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId(appendFlowSuffix(`waves:s:${o.i}`, session.sourceCommand))
+            .setLabel(trunc(label || '—', 80))
+            .setStyle(matchesSaved ? ButtonStyle.Success : ButtonStyle.Secondary),
+        );
+      }
+
+      const unknownSaved =
+        Boolean(cell?.zone_en) &&
+        cell.zone_en === zoneLoc &&
+        !String(cell.spawn_en ?? '').trim() &&
+        !String(cell.spawn_ru ?? '').trim();
+      const unkRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(appendFlowSuffix('waves:spawn:unknown', session.sourceCommand))
+          .setStyle(unknownSaved ? ButtonStyle.Success : ButtonStyle.Secondary)
+          .setEmoji('❓')
+          .setLabel(ZWSP),
+      );
+
+      return {
+        content,
+        components: [row, unkRow, wizardBackRow(locale, 'zone', session)],
+      };
+    }
+  }
+
+  const weekCtx = findWeekContext(rotations.en, rotations.ru, draft.week);
+  if (!weekCtx) {
     return {
       content: locale === 'ru' ? 'Ошибка: неделя не найдена в rotation JSON.' : 'Error: week not found in rotation JSON.',
       components: [],
     };
   }
 
-  const { enMap, ruMap } = ctx;
+  const { enMap, ruMap } = weekCtx;
   const zCount = Math.min(enMap.zones_spawns.length, ruMap.zones_spawns.length);
 
   if (session.uiStep === 'zone') {
@@ -342,9 +492,9 @@ function buildMessagePayloadCore(session, rotations) {
 
 /**
  * @param {object} session
- * @param {{ en: object[], ru: object[], weeksList: { code: string, labelEn: string, labelRu: string }[] }} rotations
+ * @param {WizardUiContext} ctx
  */
-export function buildMessagePayload(session, rotations) {
-  const p = buildMessagePayloadCore(session, rotations);
+export function buildMessagePayload(session, ctx) {
+  const p = buildMessagePayloadCore(session, ctx);
   return { ...p, embeds: p.embeds ?? [] };
 }

@@ -187,6 +187,24 @@ function createEmptyWaves() {
   return waves;
 }
 
+/** Yōtei: 12 волн; слоты 1–4 (для волн 1–9 используются только 1–3). */
+export function createEmptyYoteiWaves() {
+  /** @type {Record<string, Record<string, { zone_en: string, zone_ru: string, spawn_en: string, spawn_ru: string }>>} */
+  const waves = {};
+  for (let w = 1; w <= 12; w++) {
+    waves[`wave_${w}`] = {};
+    for (let s = 1; s <= 4; s++) {
+      waves[`wave_${w}`][String(s)] = {
+        zone_en: '',
+        zone_ru: '',
+        spawn_en: '',
+        spawn_ru: '',
+      };
+    }
+  }
+  return waves;
+}
+
 function emptyObjectives() {
   /** @type {Record<string, { objective_en: string, objective_ru: string, objective_icon: string, objective_num: number }>} */
   const out = {};
@@ -225,10 +243,83 @@ export function createEmptyDraft() {
 }
 
 /**
- * Merge a loose object (e.g. from DB payload) into the canonical draft shape.
+ * Черновик Yōtei для мастера и будущего PUT: только неделя цикла, карта (slug), волны, карточки, credits.
+ * `week`: 0 — не выбрано, 1–12 — номер недели цикла (число).
+ */
+export function createEmptyYoteiDraft() {
+  return {
+    week: 0,
+    credits: '',
+    map_slug: '',
+    waves: createEmptyYoteiWaves(),
+    /** @type {string[] | null} */
+    challenge_cards_slugs: null,
+  };
+}
+
+/**
+ * @param {unknown} waves
+ */
+function normalizeYoteiWavesBlock(waves) {
+  const out = createEmptyYoteiWaves();
+  const w = waves && typeof waves === 'object' ? /** @type {Record<string, unknown>} */ (waves) : {};
+  for (let wi = 1; wi <= 12; wi++) {
+    const key = `wave_${wi}`;
+    const maxS = wi <= 9 ? 3 : 4;
+    const srcWave = w[key] && typeof w[key] === 'object' ? /** @type {Record<string, unknown>} */ (w[key]) : {};
+    for (let s = 1; s <= maxS; s++) {
+      const slot = String(s);
+      const srcCell =
+        srcWave[slot] && typeof srcWave[slot] === 'object'
+          ? /** @type {Record<string, unknown>} */ (srcWave[slot])
+          : {};
+      out[key][slot] = {
+        zone_en: String(srcCell.zone_en ?? ''),
+        zone_ru: String(srcCell.zone_ru ?? ''),
+        spawn_en: String(srcCell.spawn_en ?? ''),
+        spawn_ru: String(srcCell.spawn_ru ?? ''),
+      };
+    }
+  }
+  return out;
+}
+
+/**
  * @param {unknown} raw
  */
-export function normalizeDraftShape(raw) {
+function normalizeYoteiDraftShape(raw) {
+  const base = createEmptyYoteiDraft();
+  if (!raw || typeof raw !== 'object') return base;
+  const o = /** @type {Record<string, unknown>} */ (raw);
+
+  let weekNum = Number(o.week);
+  if (!Number.isInteger(weekNum) || weekNum < 0 || weekNum > 12) {
+    const legacy = Number(o.cycle_week);
+    weekNum = Number.isInteger(legacy) && legacy >= 0 && legacy <= 12 ? legacy : 0;
+  }
+
+  const ccsRaw = o.challenge_cards_slugs ?? o.yotei_challenge_slugs;
+  /** @type {string[] | null} */
+  let challenge_cards_slugs = base.challenge_cards_slugs;
+  if (ccsRaw === null) challenge_cards_slugs = null;
+  else if (Array.isArray(ccsRaw)) challenge_cards_slugs = ccsRaw.map((x) => String(x));
+
+  return {
+    week: weekNum,
+    credits: String(o.credits ?? base.credits),
+    map_slug: String(o.map_slug ?? base.map_slug),
+    waves: normalizeYoteiWavesBlock(o.waves),
+    challenge_cards_slugs,
+  };
+}
+
+/**
+ * Merge a loose object (e.g. from DB payload) into the canonical draft shape.
+ * @param {unknown} raw
+ * @param {'tsushima' | 'yotei'} [game]
+ */
+export function normalizeDraftShape(raw, game = 'tsushima') {
+  if (game === 'yotei') return normalizeYoteiDraftShape(raw);
   const base = createEmptyDraft();
   if (!raw || typeof raw !== 'object') return base;
   const o = /** @type {Record<string, unknown>} */ (raw);

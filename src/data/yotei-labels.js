@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { ROTATION_YOTEI_EN_PATH, ROTATION_YOTEI_RU_PATH } from '../paths.js';
+import { createEmptyYoteiDraft } from './rotation.js';
 
 /**
  * @typedef {{ week: number, roundChallenges: string[] | null }} YoteiMapWeekSchedule
@@ -361,4 +362,67 @@ export function resolveYoteiChallengeCardThumbnail(labels, cardKey) {
   if (!key) return null;
   const u = String(labels.challengeCards[key]?.thumbnailUrl ?? '').trim();
   return u || null;
+}
+
+/** Неделя цикла → карта выживания, если в JSON нет явной строки `scheduled_weeks`. */
+const YOTEI_WEEK_FALLBACK_SLUG = {
+  1: 'frozen-valley',
+  2: 'hidden-temple',
+  3: 'river-village',
+  4: 'broken-castle',
+  5: 'frozen-valley',
+  6: 'hidden-temple',
+  7: 'river-village',
+  8: 'broken-castle',
+  9: 'frozen-valley',
+  10: 'hidden-temple',
+  11: 'river-village',
+  12: 'broken-castle',
+};
+
+/**
+ * 12 опций для селекта «неделя цикла + карта выживания».
+ *
+ * @param {YoteiLabels} labels
+ * @param {'en' | 'ru'} locale
+ * @returns {Array<{ week: number, mapSlug: string, label: string }>}
+ */
+/**
+ * Черновик после выбора недели цикла в мастере: карта, названия, карточки из `scheduled_weeks`.
+ *
+ * @param {YoteiLabels} labels
+ * @param {number} week 1–12
+ * @param {string} mapSlug
+ */
+export function buildYoteiDraftForCycleWeek(labels, week, mapSlug) {
+  const draft = createEmptyYoteiDraft();
+  const w = Number(week);
+  draft.week = Number.isInteger(w) && w >= 1 && w <= 12 ? w : 0;
+  draft.map_slug = String(mapSlug ?? '').trim();
+  const sched = getYoteiMapScheduledWeeks(labels, draft.map_slug);
+  const row = sched.find((r) => r.week === draft.week);
+  draft.challenge_cards_slugs = row ? row.roundChallenges : null;
+  return draft;
+}
+
+export function buildYoteiCycleWeekSelectOptions(labels, locale) {
+  /** @type {Array<{ week: number, mapSlug: string, label: string }>} */
+  const out = [];
+  const schedule = labels.scheduleByMapSlug ?? {};
+  for (let w = 1; w <= 12; w++) {
+    let slug = '';
+    for (const mapSlug of Object.keys(schedule)) {
+      const rows = schedule[mapSlug];
+      if (!Array.isArray(rows)) continue;
+      if (rows.some((r) => r.week === w)) {
+        slug = mapSlug;
+        break;
+      }
+    }
+    if (!slug) slug = YOTEI_WEEK_FALLBACK_SLUG[w] ?? 'frozen-valley';
+    const title = resolveYoteiMapTitle(labels, slug, locale, slug);
+    const label = locale === 'ru' ? `Неделя ${w} — ${title}` : `Week ${w} — ${title}`;
+    out.push({ week: w, mapSlug: slug, label });
+  }
+  return out;
 }

@@ -1,23 +1,25 @@
-import { SLOTS_PER_WAVE, TOTAL_WAVES } from './constants.js';
+import { getWaveGridSpec } from './game-geometry.js';
 
 /**
- * Button W.s maps to waves.wave_W["s"], W = 1…TOTAL_WAVES, s = 1…3.
+ * Button W.s maps to waves.wave_W["s"]; slot count depends on game (Yōtei: 3 or 4 per wave).
+ *
+ * @param {import('./game-geometry.js').WizardGame} [game]
  */
-
-/**
- * @param {object} draft
- * @param {number} waveNum
- * @param {number} slotNum
- */
-export function isCellFilled(draft, waveNum, slotNum) {
+export function isCellFilled(draft, waveNum, slotNum, game = 'tsushima') {
   const cell = draft.waves[`wave_${waveNum}`]?.[`${slotNum}`];
   return Boolean(cell?.zone_en);
 }
 
-export function isGridComplete(draft) {
-  for (let w = 1; w <= TOTAL_WAVES; w++) {
-    for (let s = 1; s <= SLOTS_PER_WAVE; s++) {
-      if (!isCellFilled(draft, w, s)) return false;
+/**
+ * @param {object} draft
+ * @param {import('./game-geometry.js').WizardGame} [game]
+ */
+export function isGridComplete(draft, game = 'tsushima') {
+  const spec = getWaveGridSpec(game);
+  for (let w = 1; w <= spec.totalWaves; w++) {
+    const slots = spec.slotsForWave(w);
+    for (let s = 1; s <= slots; s++) {
+      if (!isCellFilled(draft, w, s, game)) return false;
     }
   }
   return true;
@@ -28,6 +30,12 @@ export function isGridComplete(draft) {
  * @param {number} waveNum
  * @param {number} slotNum
  * @param {object} zoneSpawn
+ */
+/**
+ * @param {object} draft
+ * @param {number} waveNum
+ * @param {number} slotNum
+ * @param {{ zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string }} zoneSpawn
  */
 export function setWaveCell(draft, waveNum, slotNum, { zoneEn, zoneRu, spawnEn, spawnRu }) {
   const w = draft.waves[`wave_${waveNum}`];

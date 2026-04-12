@@ -1,14 +1,20 @@
 import { getDb, SESSIONS_TABLE } from './database.js';
 import { SESSION_TTL_MS } from './session-ttl.js';
-import { GRID_PAGE_COUNT } from '../wizard/constants.js';
+import { normalizeDraftShape } from '../data/rotation.js';
+import { getWaveGridSpec } from '../wizard/game-geometry.js';
 
 /** @param {string} userId @param {string} [sourceCommand] */
 export function sessionRowKey(userId, sourceCommand = 'setup-waves') {
   return `${userId}:${sourceCommand}`;
 }
 
-function clampGridPage(p) {
-  return Math.min(Math.max(0, p ?? 0), GRID_PAGE_COUNT - 1);
+/**
+ * @param {number | null | undefined} p
+ * @param {import('../wizard/game-geometry.js').WizardGame} [game]
+ */
+function clampGridPage(p, game = 'tsushima') {
+  const maxPage = getWaveGridSpec(game).gridPageCount - 1;
+  return Math.min(Math.max(0, p ?? 0), maxPage);
 }
 
 /**
@@ -16,6 +22,7 @@ function clampGridPage(p) {
  * @param {object} row
  */
 function normalizeRow(row) {
+  const game = row.game === 'yotei' ? 'yotei' : 'tsushima';
   return {
     userId: row.userId,
     game: row.game,
@@ -23,9 +30,9 @@ function normalizeRow(row) {
     locale: row.locale,
     messageId: row.messageId,
     channelId: row.channelId,
-    draft: row.draft,
+    draft: normalizeDraftShape(row.draft, game),
     uiStep: row.uiStep,
-    gridPage: clampGridPage(row.gridPage),
+    gridPage: clampGridPage(row.gridPage, row.game === 'yotei' ? 'yotei' : 'tsushima'),
     pendingWave: row.pendingWave,
     pendingSpawn: row.pendingSpawn,
     pendingZoneIndex: row.pendingZoneIndex,
@@ -104,7 +111,7 @@ export function saveSession(row) {
     channelId: row.channelId ?? null,
     draft: row.draft,
     uiStep: row.uiStep,
-    gridPage: clampGridPage(row.gridPage),
+    gridPage: clampGridPage(row.gridPage, row.game === 'yotei' ? 'yotei' : 'tsushima'),
     pendingWave: row.pendingWave ?? null,
     pendingSpawn: row.pendingSpawn ?? null,
     pendingZoneIndex: row.pendingZoneIndex ?? null,

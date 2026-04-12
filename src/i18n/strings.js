@@ -5,6 +5,7 @@ export const strings = {
     btn_english: 'English',
     btn_russian: 'Русский',
     choose_week: 'Select week:',
+    week_select_placeholder: 'Select week',
     choose_wave: 'Choose wave (slot):',
     choose_zone: 'Choose zone:',
     choose_spawn: 'Choose spawn:',
@@ -14,6 +15,30 @@ export const strings = {
     dm_only:
       'This command only works in direct messages. Open a DM with the bot and run it there.',
     game_not_available: 'This game is not available in the editor yet.',
+    choose_yotei_cycle_week: 'Select cycle week (1–12) and survival map:',
+    yotei_cycle_week_prefix: 'Cycle week:',
+    yotei_challenges_unknown: 'Trial cards for this week are not announced yet.',
+    yotei_challenge_cards_prefix: 'Trial cards:',
+    yotei_publish_not_implemented:
+      'Yōtei: publishing to Nightmare.Club is not wired up yet (no `PUT` in this bot version). Your session was closed; when the API is ready, this step will upload the grid.',
+    yotei_credits_local_note: 'Credits text (saved only in this reply, not sent to the site):',
+    edit_yotei_missing:
+      'No Yōtei map in the API response (`maps` empty or missing). Check the site or token.',
+    edit_yotei_invalid:
+      'Could not build the Yōtei editor draft from the Nightmare.Club response (unexpected JSON).',
+    edit_yotei_multi_map_note:
+      'Note: the API returned several maps; the editor opened the **first** entry.',
+    yotei_zone_invalid: 'That zone is not available for the selected map. Pick a cell again.',
+    bulk_yotei_need_week_map:
+      'Select a cycle week on the previous step (map + week) before using bulk paste.',
+    bulk_spawn_names_header_yotei:
+      'Use only these labels. Per slot: **zone + spawn** (as listed), or **zone only** where multiple spawns exist for the same zone (empty spawn), or add *?* after a label to force empty spawn.',
+    bulk_format_header_yotei:
+      'Format (one line per wave 1–12; waves 1–9 have **three** comma-separated slots, waves 10–12 have **four**):',
+    bulk_err_bad_wave_num_yotei: 'Invalid wave number (must be 1–12).',
+    bulk_err_bad_slot_count_yotei:
+      'Wave {wave}: need **{expected}** comma-separated slots for this wave.',
+    bulk_err_missing_waves_yotei: 'Need 12 lines, waves 1–12, each with the correct slot count.',
     saved_success: 'Saved to the bot database (SQLite).',
     saved_success_api: 'Published to Nightmare.Club.',
     api_not_configured:
@@ -114,6 +139,7 @@ export const strings = {
     btn_english: 'English',
     btn_russian: 'Русский',
     choose_week: 'Выберите неделю:',
+    week_select_placeholder: 'Выберите неделю',
     choose_wave: 'Выберите волну (ячейку):',
     choose_zone: 'Выберите зону:',
     choose_spawn: 'Выберите спавн:',
@@ -123,6 +149,31 @@ export const strings = {
     dm_only:
       'Эта команда работает только в личных сообщениях. Откройте ЛС с ботом и выполните её там.',
     game_not_available: 'Эта игра пока недоступна в редакторе.',
+    choose_yotei_cycle_week: 'Выберите неделю цикла (1–12) и карту выживания:',
+    yotei_cycle_week_prefix: 'Неделя цикла:',
+    yotei_challenges_unknown: 'Карточки испытаний для этой недели ещё не объявлены.',
+    yotei_challenge_cards_prefix: 'Карточки испытаний:',
+    yotei_publish_not_implemented:
+      'Yōtei: выгрузка на Nightmare.Club в этой версии бота ещё не подключена (нет `PUT`). Сессия закрыта; когда появится API, здесь будет публикация сетки.',
+    yotei_credits_local_note:
+      'Текст благодарностей (только в этом ответе, на сайт не отправлен):',
+    edit_yotei_missing:
+      'В ответе API нет карт Yōtei (`maps` пустой). Проверьте сайт или токен.',
+    edit_yotei_invalid:
+      'Не удалось собрать черновик Yōtei из ответа Nightmare.Club (неожиданный JSON).',
+    edit_yotei_multi_map_note:
+      'В ответе API несколько карт; открыта **первая** запись.',
+    yotei_zone_invalid: 'Эта зона недоступна для выбранной карты. Выберите ячейку снова.',
+    bulk_yotei_need_week_map:
+      'Сначала на шаге недели выберите карту и неделю цикла, затем используйте bulk.',
+    bulk_spawn_names_header_yotei:
+      'Используйте только эти подписи. На ячейку: **зона + спавн** (как в списке), либо **только зона**, если у зоны несколько спавнов (пустой спавн), либо *?* после подписи для пустого спавна.',
+    bulk_format_header_yotei:
+      'Формат (по одной строке на волны 1–12; у волн 1–9 **три** ячейки через запятую, у 10–12 — **четыре**):',
+    bulk_err_bad_wave_num_yotei: 'Неверный номер волны (нужны 1–12).',
+    bulk_err_bad_slot_count_yotei:
+      'Волна {wave}: для этой волны нужно **{expected}** ячеек через запятую.',
+    bulk_err_missing_waves_yotei: 'Нужно 12 строк с номерами волн 1–12 и нужным числом ячеек в каждой.',
     saved_success: 'Сохранено в базу бота (SQLite).',
     saved_success_api: 'Опубликовано в Nightmare.Club.',
     api_not_configured:
