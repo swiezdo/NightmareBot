@@ -141,7 +141,14 @@
             "unique-enemy-ambush"
           ]
         },
-        { "week": 6, "round_challenges": null },
+        { "week": 6,
+          "round_challenges": [
+            "attunement-suspendable",
+            "attunement-suspendable",
+            "attunement-suspendable",
+            "attunement-suspendable"
+          ] 
+        },
         { "week": 10, "round_challenges": null }
       ]
     }
@@ -201,6 +208,11 @@
       "slug": "ghost-weapon-cooldowns-increased",
       "line": "Восстановление орудий призраков занимает гораздо больше времени",
       "emoji": "<:cards_ghost_weapon_cooldowns_inc:1491887402094956636>"
+    },
+    {
+      "slug": "attunement-suspendable",
+      "line": "Сродство можно разорвать лишь на время",
+      "emoji": "<:cards_attunement_suspendable:1493274343206293645>"
     }
   ]
 }
