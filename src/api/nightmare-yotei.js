@@ -479,13 +479,25 @@ export function normalizeYoteiApiJsonForEmbeds(apiJson, labels) {
 }
 
 /**
- * @param {{ url?: string, token: string, timeoutMs?: number }} opts
+ * @param {{ url?: string, token: string, timeoutMs?: number, format?: string | null }} opts
+ *        `format` defaults to `'canonical'` (append `?format=canonical` for flat `waves` GET). Pass `null` or `''` to omit.
  * @returns {Promise<{ ok: boolean, status: number, data: unknown }>}
  */
 export async function fetchYoteiRotationRead(opts) {
-  const url = (opts.url ?? getYoteiRotationReadUrl()).replace(/\/$/, '');
+  let url = (opts.url ?? getYoteiRotationReadUrl()).replace(/\/$/, '');
   const token = String(opts.token ?? '').trim();
   const timeoutMs = opts.timeoutMs ?? 15_000;
+  const format = opts.format !== undefined ? opts.format : 'canonical';
+  if (format) {
+    try {
+      const u = new URL(url);
+      u.searchParams.set('format', format);
+      url = u.toString();
+    } catch {
+      const sep = url.includes('?') ? '&' : '?';
+      url = `${url}${sep}format=${encodeURIComponent(format)}`;
+    }
+  }
 
   const res = await fetch(url, {
     method: 'GET',

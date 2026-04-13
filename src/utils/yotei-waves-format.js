@@ -6,6 +6,12 @@ import {
   resolveYoteiMapTitle,
   resolveYoteiZone,
 } from '../data/yotei-labels.js';
+import {
+  getYoteiMapZoneRows,
+  labelForYoteiSpawnSlug,
+  resolveYoteiSpawnPointSlug,
+  toYoteiLocationApiSlug,
+} from '../data/yotei-map-zones.js';
 import { normalizeYoteiApiJsonForEmbeds } from '../api/nightmare-yotei.js';
 import { t } from '../i18n/strings.js';
 import {
@@ -38,12 +44,26 @@ function yoteiSpawnCellLine(spawn, labels, locale, mapKey) {
   const loc = String(o.location ?? '').trim();
   if (!loc) return '';
   const line = resolveYoteiZone(labels, loc, locale, mapKey);
+
+  const spawnRaw = String(o.spawn_point ?? o.spawn ?? '').trim();
+  const rows = getYoteiMapZoneRows(mapKey);
+  const row =
+    rows.find((z) => z.location === loc) ??
+    rows.find((z) => toYoteiLocationApiSlug(z.location) === toYoteiLocationApiSlug(loc));
+  const locKey = row ? row.location : loc;
+  const spawnSlug = resolveYoteiSpawnPointSlug(mapKey, locKey, spawnRaw);
+  const spawnLabel = row && spawnSlug ? labelForYoteiSpawnSlug(row, spawnSlug, locale) : '';
+  let out = line;
+  if (spawnLabel) {
+    out = `${line} ${spawnLabel}`.trim();
+  }
+
   const att = Array.isArray(o.attunements)
     ? o.attunements.map((x) => String(x).trim()).filter(Boolean)
     : [];
-  if (att.length === 0) return line;
+  if (att.length === 0) return out;
   const tag = locale === 'ru' ? 'настройки' : 'attunements';
-  return `${line} (${tag}: ${att.join(', ')})`;
+  return `${out} (${tag}: ${att.join(', ')})`;
 }
 
 /**
