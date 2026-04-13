@@ -15,10 +15,7 @@ import {
   createEmptyDraft,
   createEmptyYoteiDraft,
 } from '../data/rotation.js';
-import {
-  loadYoteiLabels,
-  buildYoteiDraftForCycleWeek,
-} from '../data/yotei-labels.js';
+import { loadYoteiLabels, buildYoteiDraftForCycleWeek } from '../data/yotei-labels.js';
 import {
   getYoteiMapZoneRows,
   YOTEI_SPAWN_SLUGS,
