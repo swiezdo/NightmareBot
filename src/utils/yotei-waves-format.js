@@ -8,7 +8,6 @@ import {
 } from '../data/yotei-labels.js';
 import {
   getYoteiMapZoneRows,
-  labelForYoteiSpawnSlug,
   resolveYoteiSpawnPointSlug,
   toYoteiLocationApiSlug,
 } from '../data/yotei-map-zones.js';
@@ -27,6 +26,21 @@ const ATTUNEMENT_EMOJI = {
   Moon: '🔵',
   Storm: '🟢',
 };
+
+/** Короткая буква для `/waves` (вместо Left/Лево и т.д.). */
+const YOTEI_SPAWN_SLUG_LETTER = /** @type {const} */ ({
+  left: 'L',
+  middle: 'M',
+  right: 'R',
+});
+
+/**
+ * @param {string} slug `left` | `middle` | `right` | ''
+ */
+function yoteiSpawnSlugToLetter(slug) {
+  const k = String(slug ?? '').trim().toLowerCase();
+  return YOTEI_SPAWN_SLUG_LETTER[/** @type {'left' | 'middle' | 'right'} */ (k)] ?? '';
+}
 
 /**
  * Ключ карты для словаря: Nightmare.Club отдаёт `slug`; опционально `map_slug`.
@@ -57,10 +71,10 @@ function yoteiSpawnCellLine(spawn, labels, locale, mapKey) {
     rows.find((z) => toYoteiLocationApiSlug(z.location) === toYoteiLocationApiSlug(loc));
   const locKey = row ? row.location : loc;
   const spawnSlug = resolveYoteiSpawnPointSlug(mapKey, locKey, spawnRaw);
-  const spawnLabel = row && spawnSlug ? labelForYoteiSpawnSlug(row, spawnSlug, locale) : '';
+  const spawnLetter = spawnSlug ? yoteiSpawnSlugToLetter(spawnSlug) : '';
   let out = line;
-  if (spawnLabel) {
-    out = `${line} ${spawnLabel}`.trim();
+  if (spawnLetter) {
+    out = `${line} ${spawnLetter}`.trim();
   }
 
   const att = Array.isArray(o.attunements)
