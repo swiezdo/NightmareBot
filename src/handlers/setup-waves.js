@@ -50,6 +50,13 @@ import { getWaveGridSpec } from '../wizard/game-geometry.js';
 import { isAllowedForSetupCommands } from '../utils/setup-access.js';
 
 const DISCORD_CONTENT_MAX = 2000;
+const HIDDEN_TEMPLE_MAP_SLUG = 'hidden-temple';
+const YOTEI_ATTUNEMENTS = ['Sun', 'Moon', 'Storm'];
+const ATTUNEMENT_BY_BUTTON = {
+  sun: 'Sun',
+  moon: 'Moon',
+  storm: 'Storm',
+};
 
 /**
  * @param {{ en: object[], ru: object[], weeksList: object[] }} rotations
@@ -403,6 +410,54 @@ function newSession(userId, game, options = {}) {
     pendingSpawn: null,
     pendingZoneIndex: null,
   };
+}
+
+/**
+ * @param {object} session
+ */
+function isHiddenTempleYoteiSession(session) {
+  return (
+    session?.game === 'yotei' &&
+    String(session?.draft?.map_slug ?? '').trim() === HIDDEN_TEMPLE_MAP_SLUG
+  );
+}
+
+/**
+ * @param {object} session
+ */
+function getCurrentYoteiCell(session) {
+  const wave = Number(session?.pendingWave);
+  const slot = Number(session?.pendingSpawn);
+  if (!Number.isInteger(wave) || !Number.isInteger(slot)) return null;
+  const waveKey = `wave_${wave}`;
+  return session?.draft?.waves?.[waveKey]?.[String(slot)] ?? null;
+}
+
+/**
+ * @param {unknown} raw
+ */
+function normalizeAttunementSelection(raw) {
+  const arr = Array.isArray(raw) ? raw : [];
+  /** @type {string[]} */
+  const out = [];
+  for (const entry of arr) {
+    const name = String(entry ?? '').trim();
+    if (!name || !YOTEI_ATTUNEMENTS.includes(name) || out.includes(name)) continue;
+    out.push(name);
+    if (out.length >= 2) break;
+  }
+  return out;
+}
+
+/**
+ * @param {string[]} current
+ * @param {string} attName
+ */
+function toggleAttunementSelection(current, attName) {
+  if (!YOTEI_ATTUNEMENTS.includes(attName)) return current;
+  if (current.includes(attName)) return current.filter((x) => x !== attName);
+  if (current.length >= 2) return current;
+  return [...current, attName];
 }
 
 /**
@@ -1050,6 +1105,42 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     return;
   }
 
+  if (id.startsWith('waves:a:')) {
+    if (!isHiddenTempleYoteiSession(session)) {
+      await interaction.deferUpdate();
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, uiCtx()),
+      );
+      return;
+    }
+
+    const key = String(id.split(':')[2] ?? '').trim().toLowerCase();
+    const attName = ATTUNEMENT_BY_BUTTON[key];
+    const cell = getCurrentYoteiCell(session);
+    if (!attName || !cell) {
+      await interaction.deferUpdate();
+      await editWizardMessageOrRecover(
+        interaction,
+        session,
+        buildMessagePayload(session, uiCtx()),
+      );
+      return;
+    }
+
+    const current = normalizeAttunementSelection(cell.attunements);
+    cell.attunements = toggleAttunementSelection(current, attName);
+    saveSession(session);
+    await interaction.deferUpdate();
+    await editWizardMessageOrRecover(
+      interaction,
+      session,
+      buildMessagePayload(session, uiCtx()),
+    );
+    return;
+  }
+
   if (id === 'waves:spawn:unknown') {
     if (session.game === 'yotei') {
       const slugU = String(session.draft.map_slug ?? '').trim();
@@ -1076,6 +1167,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         return;
       }
       const zy = yRowsU[ziY];
+      const keepAttunements = normalizeAttunementSelection(getCurrentYoteiCell(session)?.attunements);
       setWaveCell(
         session.draft,
         /** @type {number} */ (session.pendingWave),
@@ -1085,6 +1177,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
           zoneRu: zy.zoneRu,
           spawnEn: '',
           spawnRu: '',
+          attunements: keepAttunements,
         },
       );
       session.uiStep = 'grid';
@@ -1175,6 +1268,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       const zs = yRowsS[ziS];
       const spawnSlug = YOTEI_SPAWN_SLUGS[si];
       const locSpawn = /** @type {'en' | 'ru'} */ (session.locale);
+      const keepAttunements = normalizeAttunementSelection(getCurrentYoteiCell(session)?.attunements);
       setWaveCell(
         session.draft,
         /** @type {number} */ (session.pendingWave),
@@ -1184,6 +1278,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
           zoneRu: zs.zoneRu,
           spawnEn: spawnSlug,
           spawnRu: labelForYoteiSpawnSlug(zs, spawnSlug, locSpawn),
+          attunements: keepAttunements,
         },
       );
       session.uiStep = 'grid';

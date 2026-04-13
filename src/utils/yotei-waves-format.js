@@ -22,6 +22,11 @@ import {
 
 const EMBED_COLOR = 0x5865f2;
 const STAGE_COUNT = 4;
+const ATTUNEMENT_EMOJI = {
+  Sun: '🟡',
+  Moon: '🔵',
+  Storm: '🟢',
+};
 
 /**
  * Ключ карты для словаря: Nightmare.Club отдаёт `slug`; опционально `map_slug`.
@@ -62,8 +67,8 @@ function yoteiSpawnCellLine(spawn, labels, locale, mapKey) {
     ? o.attunements.map((x) => String(x).trim()).filter(Boolean)
     : [];
   if (att.length === 0) return out;
-  const tag = locale === 'ru' ? 'настройки' : 'attunements';
-  return `${out} (${tag}: ${att.join(', ')})`;
+  const emoji = att.map((x) => ATTUNEMENT_EMOJI[x] ?? x).join('');
+  return `${out} ${emoji}`.trim();
 }
 
 /**

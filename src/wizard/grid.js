@@ -35,9 +35,14 @@ export function isGridComplete(draft, game = 'tsushima') {
  * @param {object} draft
  * @param {number} waveNum
  * @param {number} slotNum
- * @param {{ zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string }} zoneSpawn
+ * @param {{ zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string, attunements?: string[] }} zoneSpawn
  */
-export function setWaveCell(draft, waveNum, slotNum, { zoneEn, zoneRu, spawnEn, spawnRu }) {
+export function setWaveCell(
+  draft,
+  waveNum,
+  slotNum,
+  { zoneEn, zoneRu, spawnEn, spawnRu, attunements = [] },
+) {
   const w = draft.waves[`wave_${waveNum}`];
   if (!w) return;
   w[`${slotNum}`] = {
@@ -45,5 +50,8 @@ export function setWaveCell(draft, waveNum, slotNum, { zoneEn, zoneRu, spawnEn, 
     zone_ru: zoneRu,
     spawn_en: spawnEn,
     spawn_ru: spawnRu,
+    attunements: Array.isArray(attunements)
+      ? attunements.map((x) => String(x).trim()).filter(Boolean)
+      : [],
   };
 }

@@ -22,6 +22,12 @@ import { buildBulkInputPayload } from './bulk-waves-text.js';
 
 const LABEL_MAX = 100;
 const MOD_TRUNC = 120;
+const HIDDEN_TEMPLE_MAP_SLUG = 'hidden-temple';
+const YOTEI_ATTUNEMENT_BUTTONS = [
+  { id: 'sun', name: 'Sun', emoji: '🟡' },
+  { id: 'moon', name: 'Moon', emoji: '🔵' },
+  { id: 'storm', name: 'Storm', emoji: '🟢' },
+];
 
 /**
  * @typedef {import('../data/yotei-labels.js').YoteiLabels} YoteiLabels
@@ -317,10 +323,31 @@ function buildMessagePayloadCore(session, ctx) {
             .setStyle(matchesSaved ? ButtonStyle.Success : ButtonStyle.Secondary),
         );
       }
-      return {
-        content,
-        components: [row, wizardBackRow(locale, 'grid', session)],
-      };
+      const savedAttunements = Array.isArray(cell?.attunements)
+        ? cell.attunements.map((x) => String(x).trim()).filter(Boolean)
+        : [];
+      const needsAttunements = slug === HIDDEN_TEMPLE_MAP_SLUG;
+      if (needsAttunements) {
+        content += `\n${t(locale, 'yotei_attunement_hint')}`;
+      }
+      /** @type {ActionRowBuilder[]} */
+      const rowsOut = [row];
+      if (needsAttunements) {
+        const attRow = new ActionRowBuilder();
+        for (const a of YOTEI_ATTUNEMENT_BUTTONS) {
+          const active = savedAttunements.includes(a.name);
+          attRow.addComponents(
+            new ButtonBuilder()
+              .setCustomId(appendFlowSuffix(`waves:a:${a.id}`, session.sourceCommand))
+              .setStyle(active ? ButtonStyle.Success : ButtonStyle.Secondary)
+              .setEmoji(a.emoji)
+              .setLabel(ZWSP),
+          );
+        }
+        rowsOut.push(attRow);
+      }
+      rowsOut.push(wizardBackRow(locale, 'grid', session));
+      return { content, components: rowsOut };
     }
 
     if (session.uiStep === 'spawn') {
@@ -376,9 +403,12 @@ function buildMessagePayloadCore(session, ctx) {
           .setLabel(ZWSP),
       );
 
+      /** @type {ActionRowBuilder[]} */
+      const rowsOut = [row, unkRow, wizardBackRow(locale, 'zone', session)];
+
       return {
         content,
-        components: [row, unkRow, wizardBackRow(locale, 'zone', session)],
+        components: rowsOut,
       };
     }
   }

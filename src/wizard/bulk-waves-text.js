@@ -350,6 +350,38 @@ export function buildYoteiSpawnCatalog(mapSlug, locale) {
 }
 
 const LINE_RE = /^\s*(\d+)\s*\.\s*(.+)$/;
+const YOTEI_ATT_NORM_TO_CANON = {
+  sun: 'Sun',
+  moon: 'Moon',
+  storm: 'Storm',
+};
+
+/**
+ * @param {string} token
+ */
+function parseYoteiAttunementsFromToken(token) {
+  const trimmed = String(token ?? '').trim();
+  if (!trimmed) return { baseToken: '', attunements: [] };
+
+  const m = trimmed.match(/\s+([a-z]+(?:\s*-\s*[a-z]+)*)\s*$/i);
+  if (!m) return { baseToken: trimmed, attunements: [] };
+
+  const tail = m[1];
+  const parts = tail
+    .split('-')
+    .map((x) => normToken(x))
+    .filter(Boolean);
+  if (parts.length === 0) return { baseToken: trimmed, attunements: [] };
+  const mapped = parts.map((x) => YOTEI_ATT_NORM_TO_CANON[x]).filter(Boolean);
+  if (mapped.length !== parts.length) {
+    return { baseToken: trimmed, attunements: [] };
+  }
+  const attunements = Array.from(new Set(mapped));
+  return {
+    baseToken: trimmed.slice(0, m.index).trim(),
+    attunements,
+  };
+}
 
 /**
  * @param {string} text
@@ -414,7 +446,7 @@ export function parseBulkWavesText(text, catalog) {
 
   /** @type {{ wave: number, slotIdx: number, token: string }[]} */
   const slotErrors = [];
-  /** @type {{ w: number, s: number, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string }[]} */
+  /** @type {{ w: number, s: number, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string, attunements: string[] }[]} */
   const assignments = [];
 
   for (let w = 1; w <= TOTAL_WAVES; w++) {
@@ -432,6 +464,7 @@ export function parseBulkWavesText(text, catalog) {
           zoneRu: cell.zoneRu,
           spawnEn: cell.spawnEn,
           spawnRu: cell.spawnRu,
+          attunements: [],
         });
       }
     }
@@ -519,7 +552,9 @@ export function parseBulkYoteiWavesText(text, catalog) {
 
   /** @type {{ wave: number, slotIdx: number, token: string }[]} */
   const slotErrors = [];
-  /** @type {{ w: number, s: number, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string }[]} */
+  /** @type {{ wave: number, slotIdx: number, token: string }[]} */
+  const attunementErrors = [];
+  /** @type {{ w: number, s: number, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string, attunements: string[] }[]} */
   const assignments = [];
 
   for (let w = 1; w <= spec.totalWaves; w++) {
@@ -527,10 +562,17 @@ export function parseBulkYoteiWavesText(text, catalog) {
     const maxS = spec.slotsForWave(w);
     for (let si = 0; si < maxS; si++) {
       const token = parts[si];
-      const cell = matchSlotTokenAllowUnknownSpawn(token, matchers);
+      const parsedAtt = parseYoteiAttunementsFromToken(token);
+      const cell = matchSlotTokenAllowUnknownSpawn(
+        parsedAtt.baseToken || token,
+        matchers,
+      );
       if (!cell) {
         slotErrors.push({ wave: w, slotIdx: si, token });
       } else {
+        if (parsedAtt.attunements.length > 2) {
+          attunementErrors.push({ wave: w, slotIdx: si, token });
+        }
         assignments.push({
           w,
           s: si + 1,
@@ -538,6 +580,7 @@ export function parseBulkYoteiWavesText(text, catalog) {
           zoneRu: cell.zoneRu,
           spawnEn: cell.spawnEn,
           spawnRu: cell.spawnRu,
+          attunements: parsedAtt.attunements.slice(0, 2),
         });
       }
     }
@@ -550,6 +593,17 @@ export function parseBulkYoteiWavesText(text, catalog) {
       raw: text,
       waveMap,
       slotErrors,
+      game: 'yotei',
+    };
+  }
+
+  if (attunementErrors.length > 0) {
+    return {
+      ok: false,
+      kind: 'bad_attunements',
+      raw: text,
+      waveMap,
+      slotErrors: attunementErrors,
       game: 'yotei',
     };
   }
@@ -601,6 +655,14 @@ export function formatBulkParseFailure(result, locale, game = 'tsushima') {
       ? truncateTo(block, EMBED_DESC_MAX)
       : block;
   }
+  if (result.kind === 'bad_attunements') {
+    const echo = formatYoteiSlotErrorsEcho(result.waveMap, result.slotErrors);
+    const head = t(loc, 'bulk_err_bad_attunements');
+    const block = `${head}\n\n${echo}`;
+    return block.length > EMBED_DESC_MAX
+      ? truncateTo(block, EMBED_DESC_MAX)
+      : block;
+  }
   return t(loc, 'bulk_err_unknown');
 }
 
@@ -643,7 +705,7 @@ export function formatYoteiSlotErrorsEcho(waveMap, slotErrors) {
 
 /**
  * @param {object} draft
- * @param {{ w: number, s: number, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string }[]} assignments
+ * @param {{ w: number, s: number, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string, attunements?: string[] }[]} assignments
  */
 export function applyBulkAssignments(draft, assignments) {
   for (const a of assignments) {
@@ -652,6 +714,7 @@ export function applyBulkAssignments(draft, assignments) {
       zoneRu: a.zoneRu,
       spawnEn: a.spawnEn,
       spawnRu: a.spawnRu,
+      attunements: Array.isArray(a.attunements) ? a.attunements : [],
     });
   }
 }
@@ -749,6 +812,10 @@ export function buildYoteiBulkInstructionMain(session, mapSlug) {
   }
   const catalog = buildYoteiSpawnCatalog(slug, locale);
   const exampleLines = buildExampleYoteiWaveLines(catalog, 4);
+  if (slug === 'hidden-temple' && exampleLines.length > 0) {
+    exampleLines[0] = `${exampleLines[0]} sun`;
+    if (exampleLines[1]) exampleLines[1] = `${exampleLines[1]} moon-storm`;
+  }
   let body = buildInstructionBody(locale, catalog, exampleLines, 'yotei');
   body = shrinkBodyIfNeeded(body, locale, DISCORD_MAX - 400, 'yotei');
   return { ok: true, content: body, catalog };

@@ -9,6 +9,8 @@ export const strings = {
     choose_wave: 'Choose wave (slot):',
     choose_zone: 'Choose zone:',
     choose_spawn: 'Choose spawn:',
+    yotei_attunement_hint:
+      'Attunements: 🟡 Sun, 🔵 Moon, 🟢 Storm',
     spawn_unknown_hint: '❓ = spawn unknown (saved with empty spawn).',
     btn_done: 'Done',
     forbidden: 'You are not allowed to use this command.',
@@ -17,8 +19,8 @@ export const strings = {
     game_not_available: 'This game is not available in the editor yet.',
     choose_yotei_cycle_week: 'Select cycle week (1–12) and survival map:',
     yotei_cycle_week_prefix: 'Cycle week:',
-    yotei_challenges_unknown: 'Trial cards for this week are not announced yet.',
-    yotei_challenge_cards_prefix: 'Trial cards:',
+    yotei_challenges_unknown: 'Challenge cards for this week are not announced yet.',
+    yotei_challenge_cards_prefix: 'Challenge cards:',
     yotei_publish_not_implemented:
       'Yōtei: publishing to Nightmare.Club is not wired up yet (no `PUT` in this bot version). Your session was closed; when the API is ready, this step will upload the grid.',
     yotei_credits_local_note: 'Credits text (saved only in this reply, not sent to the site):',
@@ -32,13 +34,15 @@ export const strings = {
     bulk_yotei_need_week_map:
       'Select a cycle week on the previous step (map + week) before using bulk paste.',
     bulk_spawn_names_header_yotei:
-      'Use only these labels. Per slot: **zone + spawn** (as listed), or **zone only** where multiple spawns exist for the same zone (empty spawn), or add *?* after a label to force empty spawn.',
+      'Use only these labels. Per slot: **zone + spawn** (as listed), or **zone only** where multiple spawns exist for the same zone (empty spawn), or add *?* after a label to force empty spawn. Optional at the end: `sun`, `moon`, `storm` or `sun-moon` / `sun-storm` / `moon-storm`.',
     bulk_format_header_yotei:
       'Format (one line per wave 1–12; waves 1–9 have **three** comma-separated slots, waves 10–12 have **four**):',
     bulk_err_bad_wave_num_yotei: 'Invalid wave number (must be 1–12).',
     bulk_err_bad_slot_count_yotei:
       'Wave {wave}: need **{expected}** comma-separated slots for this wave.',
     bulk_err_missing_waves_yotei: 'Need 12 lines, waves 1–12, each with the correct slot count.',
+    bulk_err_bad_attunements:
+      'Attunements must use `sun`, `moon`, `storm` and at most two values per slot (e.g. `sun-storm`).',
     saved_success: 'Saved to the bot database (SQLite).',
     saved_success_api: 'Published to Nightmare.Club.',
     api_not_configured:
@@ -145,6 +149,8 @@ export const strings = {
     choose_wave: 'Выберите волну (ячейку):',
     choose_zone: 'Выберите зону:',
     choose_spawn: 'Выберите спавн:',
+    yotei_attunement_hint:
+      'Сродства: 🟡 Солнце, 🔵 Луна, 🟢 Шторм',
     spawn_unknown_hint: '❓ = спавн неизвестен (сохранится с пустым спавном).',
     btn_done: 'Готово',
     forbidden: 'У вас нет доступа к этой команде.',
@@ -169,13 +175,15 @@ export const strings = {
     bulk_yotei_need_week_map:
       'Сначала на шаге недели выберите карту и неделю цикла, затем используйте bulk.',
     bulk_spawn_names_header_yotei:
-      'Используйте только эти подписи. На ячейку: **зона + спавн** (как в списке), либо **только зона**, если у зоны несколько спавнов (пустой спавн), либо *?* после подписи для пустого спавна.',
+      'Используйте только эти подписи. На ячейку: **зона + спавн** (как в списке), либо **только зона**, если у зоны несколько спавнов (пустой спавн), либо *?* после подписи для пустого спавна. Опционально в конце: `sun`, `moon`, `storm` или `sun-moon` / `sun-storm` / `moon-storm`.',
     bulk_format_header_yotei:
       'Формат (по одной строке на волны 1–12; у волн 1–9 **три** ячейки через запятую, у 10–12 — **четыре**):',
     bulk_err_bad_wave_num_yotei: 'Неверный номер волны (нужны 1–12).',
     bulk_err_bad_slot_count_yotei:
       'Волна {wave}: для этой волны нужно **{expected}** ячеек через запятую.',
     bulk_err_missing_waves_yotei: 'Нужно 12 строк с номерами волн 1–12 и нужным числом ячеек в каждой.',
+    bulk_err_bad_attunements:
+      'Для attunements используйте `sun`, `moon`, `storm` и не больше двух значений на ячейку (например `sun-storm`).',
     saved_success: 'Сохранено в базу бота (SQLite).',
     saved_success_api: 'Опубликовано в Nightmare.Club.',
     api_not_configured:

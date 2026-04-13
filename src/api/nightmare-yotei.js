@@ -115,6 +115,7 @@ function isCanonicalWaveShape(w) {
     if (!Number.isFinite(ord) || ord < 1) return false;
     if (typeof sp.location !== 'string') return false;
     if (typeof sp.spawn !== 'string') return false;
+    if (sp.attunements !== undefined && !Array.isArray(sp.attunements)) return false;
   }
   return true;
 }
@@ -144,7 +145,7 @@ function normalizeCanonicalFromShape(row) {
   const credits = creditsRaw != null ? String(creditsRaw) : '';
 
   const spec = getWaveGridSpec('yotei');
-  /** @type {Map<number, { order: number, location: string, spawn: string }[]>} */
+  /** @type {Map<number, { order: number, location: string, spawn: string, attunements: string[] }[]>} */
   const byWave = new Map();
   const wavesIn = Array.isArray(row.waves) ? row.waves : [];
   for (const w of wavesIn) {
@@ -153,7 +154,7 @@ function normalizeCanonicalFromShape(row) {
     const waveNum = Number(wo.wave);
     const spawnsRaw = wo.spawns;
     const arr = Array.isArray(spawnsRaw) ? spawnsRaw : [];
-    /** @type {{ order: number, location: string, spawn: string }[]} */
+    /** @type {{ order: number, location: string, spawn: string, attunements: string[] }[]} */
     const spawns = [];
     for (const s of arr) {
       if (!s || typeof s !== 'object') continue;
@@ -164,26 +165,34 @@ function normalizeCanonicalFromShape(row) {
         order,
         location: String(sp.location ?? '').trim(),
         spawn: String(sp.spawn ?? '').trim(),
+        attunements: Array.isArray(sp.attunements)
+          ? sp.attunements.map((x) => String(x).trim()).filter(Boolean)
+          : [],
       });
     }
     spawns.sort((a, b) => a.order - b.order);
     byWave.set(waveNum, spawns);
   }
 
-  /** @type {{ wave: number, spawns: { order: number, location: string, spawn: string }[] }[]} */
+  /** @type {{ wave: number, spawns: { order: number, location: string, spawn: string, attunements: string[] }[] }[]} */
   const waves = [];
   for (let wn = 1; wn <= spec.totalWaves; wn++) {
     const maxS = spec.slotsForWave(wn);
     const existing = byWave.get(wn) ?? [];
     const byOrd = new Map(existing.map((x) => [x.order, x]));
-    /** @type {{ order: number, location: string, spawn: string }[]} */
+    /** @type {{ order: number, location: string, spawn: string, attunements: string[] }[]} */
     const spawns = [];
     for (let ord = 1; ord <= maxS; ord++) {
       const ex = byOrd.get(ord);
       if (ex) {
-        spawns.push({ order: ord, location: ex.location, spawn: ex.spawn });
+        spawns.push({
+          order: ord,
+          location: ex.location,
+          spawn: ex.spawn,
+          attunements: ex.attunements ?? [],
+        });
       } else {
-        spawns.push({ order: ord, location: '', spawn: '' });
+        spawns.push({ order: ord, location: '', spawn: '', attunements: [] });
       }
     }
     waves.push({ wave: wn, spawns });
@@ -254,7 +263,7 @@ function legacyMapsEntryToCanonical(entry) {
   const challenge_cards_slugs = challengeSlugs.some((x) => x) ? challengeSlugs : null;
 
   const spec = getWaveGridSpec('yotei');
-  /** @type {Map<number, { order: number, location: string, spawn: string }[]>} */
+  /** @type {Map<number, { order: number, location: string, spawn: string, attunements: string[] }[]>} */
   const byGlobalWave = new Map();
   let uiWave = 0;
   for (const rd of rounds) {
@@ -272,7 +281,7 @@ function legacyMapsEntryToCanonical(entry) {
       const wo = /** @type {Record<string, unknown>} */ (wv);
       const spawns = normalizeYoteiSpawnsList(wo.spawns);
       const maxSlot = spec.slotsForWave(uiWave);
-      /** @type {{ order: number, location: string, spawn: string }[]} */
+      /** @type {{ order: number, location: string, spawn: string, attunements: string[] }[]} */
       const list = [];
       for (const sp of spawns) {
         const so = /** @type {Record<string, unknown>} */ (sp);
@@ -282,7 +291,12 @@ function legacyMapsEntryToCanonical(entry) {
         const spPoint = String(so.spawn_point ?? '').trim();
         const locSlug = toYoteiLocationApiSlug(loc);
         const spawnSlug = resolveYoteiSpawnPointSlug(map_slug, loc, spPoint);
-        list.push({ order, location: locSlug, spawn: spawnSlug });
+        const attunements = Array.isArray(so.attunements)
+          ? so.attunements.map((x) => String(x).trim()).filter(Boolean)
+          : Array.isArray(so.element)
+            ? so.element.map((x) => String(x).trim()).filter(Boolean)
+            : [];
+        list.push({ order, location: locSlug, spawn: spawnSlug, attunements });
       }
       list.sort((a, b) => a.order - b.order);
       byGlobalWave.set(uiWave, list);
@@ -290,20 +304,25 @@ function legacyMapsEntryToCanonical(entry) {
     if (uiWave >= spec.totalWaves) break;
   }
 
-  /** @type {{ wave: number, spawns: { order: number, location: string, spawn: string }[] }[]} */
+  /** @type {{ wave: number, spawns: { order: number, location: string, spawn: string, attunements: string[] }[] }[]} */
   const waves = [];
   for (let wn = 1; wn <= spec.totalWaves; wn++) {
     const maxS = spec.slotsForWave(wn);
     const existing = byGlobalWave.get(wn) ?? [];
     const byOrd = new Map(existing.map((x) => [x.order, x]));
-    /** @type {{ order: number, location: string, spawn: string }[]} */
+    /** @type {{ order: number, location: string, spawn: string, attunements: string[] }[]} */
     const spawns = [];
     for (let ord = 1; ord <= maxS; ord++) {
       const ex = byOrd.get(ord);
       if (ex) {
-        spawns.push({ order: ord, location: ex.location, spawn: ex.spawn });
+        spawns.push({
+          order: ord,
+          location: ex.location,
+          spawn: ex.spawn,
+          attunements: ex.attunements ?? [],
+        });
       } else {
-        spawns.push({ order: ord, location: '', spawn: '' });
+        spawns.push({ order: ord, location: '', spawn: '', attunements: [] });
       }
     }
     waves.push({ wave: wn, spawns });
@@ -389,11 +408,15 @@ export function canonicalToDraft(canonical, labels) {
         spawnCanon === 'left' || spawnCanon === 'middle' || spawnCanon === 'right'
           ? spawnCanon
           : resolveYoteiSpawnPointSlug(map_slug, locKey, spawnCanon);
+      const attunements = Array.isArray(so.attunements)
+        ? so.attunements.map((x) => String(x).trim()).filter(Boolean)
+        : [];
       draft.waves[waveKey][String(s)] = {
         zone_en: locKey,
         zone_ru: zoneRu,
         spawn_en: spawnSlug,
         spawn_ru: row && spawnSlug ? labelForYoteiSpawnSlug(row, spawnSlug, 'ru') : '',
+        attunements,
       };
     }
   }
@@ -433,6 +456,9 @@ export function canonicalToLegacyMapForEmbeds(canonical, labels) {
             order: sp.order,
             location: locDisplay,
             spawn_point: sp.spawn,
+            attunements: Array.isArray(sp.attunements)
+              ? sp.attunements.map((x) => String(x).trim()).filter(Boolean)
+              : [],
           });
         }
       }
@@ -479,25 +505,13 @@ export function normalizeYoteiApiJsonForEmbeds(apiJson, labels) {
 }
 
 /**
- * @param {{ url?: string, token: string, timeoutMs?: number, format?: string | null }} opts
- *        `format` defaults to `'canonical'` (append `?format=canonical` for flat `waves` GET). Pass `null` or `''` to omit.
+ * @param {{ url?: string, token: string, timeoutMs?: number }} opts
  * @returns {Promise<{ ok: boolean, status: number, data: unknown }>}
  */
 export async function fetchYoteiRotationRead(opts) {
-  let url = (opts.url ?? getYoteiRotationReadUrl()).replace(/\/$/, '');
+  const url = (opts.url ?? getYoteiRotationReadUrl()).replace(/\/$/, '');
   const token = String(opts.token ?? '').trim();
   const timeoutMs = opts.timeoutMs ?? 15_000;
-  const format = opts.format !== undefined ? opts.format : 'canonical';
-  if (format) {
-    try {
-      const u = new URL(url);
-      u.searchParams.set('format', format);
-      url = u.toString();
-    } catch {
-      const sep = url.includes('?') ? '&' : '?';
-      url = `${url}${sep}format=${encodeURIComponent(format)}`;
-    }
-  }
 
   const res = await fetch(url, {
     method: 'GET',
@@ -578,10 +592,14 @@ export function buildYoteiApiPayload(draft) {
         spawnRaw === 'left' || spawnRaw === 'middle' || spawnRaw === 'right'
           ? spawnRaw
           : resolveYoteiSpawnPointSlug(map_slug, locKey, spawnRaw);
+      const attunements = Array.isArray(cell?.attunements)
+        ? cell.attunements.map((x) => String(x).trim()).filter(Boolean)
+        : [];
       spawns.push({
         order: s,
         location: toYoteiLocationApiSlug(locKey),
         spawn: spawnSlug,
+        ...(attunements.length > 0 ? { attunements } : {}),
       });
     }
     waves.push({ wave: w, spawns });

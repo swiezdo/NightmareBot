@@ -189,7 +189,7 @@ function createEmptyWaves() {
 
 /** Yōtei: 12 волн; слоты 1–4 (для волн 1–9 используются только 1–3). */
 export function createEmptyYoteiWaves() {
-  /** @type {Record<string, Record<string, { zone_en: string, zone_ru: string, spawn_en: string, spawn_ru: string }>>} */
+  /** @type {Record<string, Record<string, { zone_en: string, zone_ru: string, spawn_en: string, spawn_ru: string, attunements: string[] }>>} */
   const waves = {};
   for (let w = 1; w <= 12; w++) {
     waves[`wave_${w}`] = {};
@@ -199,6 +199,7 @@ export function createEmptyYoteiWaves() {
         zone_ru: '',
         spawn_en: '',
         spawn_ru: '',
+        attunements: [],
       };
     }
   }
@@ -278,6 +279,9 @@ function normalizeYoteiWavesBlock(waves) {
         zone_ru: String(srcCell.zone_ru ?? ''),
         spawn_en: String(srcCell.spawn_en ?? ''),
         spawn_ru: String(srcCell.spawn_ru ?? ''),
+        attunements: Array.isArray(srcCell.attunements)
+          ? srcCell.attunements.map((x) => String(x).trim()).filter(Boolean)
+          : [],
       };
     }
   }
