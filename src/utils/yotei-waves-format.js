@@ -22,6 +22,7 @@ import {
 const EMBED_COLOR = 0x5865f2;
 const STAGE_COUNT = 4;
 const WEEK_SECONDS = 7 * 24 * 60 * 60;
+const MSK_RESET_SHIFT_SECONDS = 9 * 60 * 60;
 const ATTUNEMENT_EMOJI = {
   Sun: '🟡',
   Moon: '🔵',
@@ -57,8 +58,10 @@ function mapDictionaryKey(mapRow) {
  */
 function buildWeekRangeLine(weekStartUnix) {
   if (!Number.isInteger(weekStartUnix) || weekStartUnix <= 0) return '';
-  const endUnix = weekStartUnix + WEEK_SECONDS;
-  return `<t:${weekStartUnix}:D> — <t:${endUnix}:D>`;
+  // API root unix is Tue 00:00 UTC from calendar date; for bot display use fixed Mon 18:00 MSK reset.
+  const displayStartUnix = weekStartUnix - MSK_RESET_SHIFT_SECONDS;
+  const endUnix = displayStartUnix + WEEK_SECONDS;
+  return `<t:${displayStartUnix}:D> — <t:${endUnix}:D>`;
 }
 
 /**
