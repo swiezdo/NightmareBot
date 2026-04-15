@@ -473,6 +473,7 @@ export function canonicalToLegacyMapForEmbeds(canonical, labels) {
   }
 
   return {
+    week: canonical.week,
     slug: mapKey,
     map_slug: mapKey,
     name: nameEn,
@@ -489,9 +490,16 @@ export function canonicalToLegacyMapForEmbeds(canonical, labels) {
  * @returns {{ maps: object[] } | null}
  */
 export function normalizeYoteiApiJsonForEmbeds(apiJson, labels) {
+  const root =
+    apiJson && typeof apiJson === 'object' && !Array.isArray(apiJson)
+      ? /** @type {Record<string, unknown>} */ (apiJson)
+      : null;
+  const weekStartUnixRaw = root ? Number(root.week_start_unix) : NaN;
+  const week_start_unix = Number.isInteger(weekStartUnixRaw) && weekStartUnixRaw > 0 ? weekStartUnixRaw : null;
+
   const c = parseYoteiApiBodyToCanonical(apiJson);
   if (c) {
-    return { maps: [canonicalToLegacyMapForEmbeds(c, labels)] };
+    return { week_start_unix, maps: [canonicalToLegacyMapForEmbeds(c, labels)] };
   }
   const maps =
     apiJson && typeof apiJson === 'object' && Array.isArray(/** @type {{ maps?: unknown }} */ (apiJson).maps)
@@ -499,7 +507,7 @@ export function normalizeYoteiApiJsonForEmbeds(apiJson, labels) {
       : null;
   if (maps && maps.length > 0) {
     const filtered = maps.filter((m) => m && typeof m === 'object');
-    return filtered.length > 0 ? { maps: filtered } : null;
+    return filtered.length > 0 ? { week_start_unix, maps: filtered } : null;
   }
   return null;
 }

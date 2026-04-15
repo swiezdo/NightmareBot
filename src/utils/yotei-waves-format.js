@@ -21,6 +21,7 @@ import {
 
 const EMBED_COLOR = 0x5865f2;
 const STAGE_COUNT = 4;
+const WEEK_SECONDS = 7 * 24 * 60 * 60;
 const ATTUNEMENT_EMOJI = {
   Sun: '🟡',
   Moon: '🔵',
@@ -49,6 +50,15 @@ function yoteiSpawnSlugToLetter(slug) {
  */
 function mapDictionaryKey(mapRow) {
   return String(mapRow.map_slug ?? mapRow.slug ?? mapRow.name ?? '').trim();
+}
+
+/**
+ * @param {number | null} weekStartUnix
+ */
+function buildWeekRangeLine(weekStartUnix) {
+  if (!Number.isInteger(weekStartUnix) || weekStartUnix <= 0) return '';
+  const endUnix = weekStartUnix + WEEK_SECONDS;
+  return `<t:${weekStartUnix}:D> — <t:${endUnix}:D>`;
 }
 
 /**
@@ -196,13 +206,22 @@ function waveLineBlocksForRound(round, labels, locale, mapKey) {
  * @param {'en' | 'ru'} locale
  * @param {string} creditText
  * @param {ReturnType<typeof import('../data/yotei-labels.js').loadYoteiLabels>} labels
+ * @param {{ weekStartUnix: number | null }} meta
  */
-function buildYoteiMainContent(mapRow, locale, creditText, labels) {
+function buildYoteiMainContent(mapRow, locale, creditText, labels, meta) {
   const mapKey = mapDictionaryKey(mapRow);
   const apiMapTitle = String(mapRow.name ?? mapRow.title ?? '').trim() || mapKey;
   const title = resolveYoteiMapTitle(labels, mapKey, locale, apiMapTitle);
-  const lines = [`# ${title}`];
-  return finalizeDiscordMessageContent(lines.join('\n'), creditText);
+  const trimmedCredit = String(creditText ?? '').trim();
+  const weekRaw = Number(mapRow.week);
+  const week = Number.isInteger(weekRaw) && weekRaw >= 1 && weekRaw <= 12 ? weekRaw : null;
+  const lines = [];
+  if (week != null) lines.push(`> **Week #${week}**`);
+  const weekRangeLine = buildWeekRangeLine(meta.weekStartUnix);
+  if (weekRangeLine) lines.push(weekRangeLine);
+  lines.push(`# ${title}`);
+  if (trimmedCredit) lines.push(trimmedCredit);
+  return finalizeDiscordMessageContent(lines.join('\n'), '');
 }
 
 /**
@@ -223,6 +242,10 @@ export function formatYoteiRotationEmbedPayloads(apiJson, options = {}) {
     return [{ content: t(locale, 'yotei_format_empty_maps'), embeds: [] }];
   }
   const maps = wrapped.maps;
+  const weekStartUnix =
+    Number.isInteger(Number(wrapped.week_start_unix)) && Number(wrapped.week_start_unix) > 0
+      ? Number(wrapped.week_start_unix)
+      : null;
 
   /** @type {Array<{ content: string, embeds: EmbedBuilder[] }>} */
   const out = [];
@@ -237,7 +260,7 @@ export function formatYoteiRotationEmbedPayloads(apiJson, options = {}) {
           ? String(m.credit_text)
           : '';
 
-    const content = buildYoteiMainContent(m, locale, creditText, labels);
+    const content = buildYoteiMainContent(m, locale, creditText, labels, { weekStartUnix });
     const mapKey = mapDictionaryKey(m);
     const slots = roundsFourSlots(m.rounds);
 
