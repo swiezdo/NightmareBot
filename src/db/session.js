@@ -102,6 +102,7 @@ export function getSession(userId, sourceCommand = 'setup-waves') {
  */
 export function saveSession(row) {
   const db = getDb();
+  const game = row.game === 'yotei' ? 'yotei' : 'tsushima';
   const toStore = {
     userId: row.userId,
     game: row.game,
@@ -109,7 +110,7 @@ export function saveSession(row) {
     locale: row.locale ?? null,
     messageId: row.messageId ?? null,
     channelId: row.channelId ?? null,
-    draft: row.draft,
+    draft: normalizeDraftShape(row.draft, game),
     uiStep: row.uiStep,
     gridPage: clampGridPage(row.gridPage, row.game === 'yotei' ? 'yotei' : 'tsushima'),
     pendingWave: row.pendingWave ?? null,

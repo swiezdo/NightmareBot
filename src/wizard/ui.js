@@ -261,10 +261,14 @@ function buildMessagePayloadCore(session, ctx) {
         }
       }
     } else if (draft.week) {
-      const mapTitle = locale === 'en' ? draft.map_name_en : draft.map_name_ru;
+      const weekCtx = findWeekContext(rotations.en, rotations.ru, draft.week);
+      const mapTitle = weekCtx
+        ? locale === 'en'
+          ? weekCtx.enMap.name
+          : weekCtx.ruMap.name
+        : draft.map_name_en;
       const weekInTicks = t(locale, 'week_code_label').replace('{code}', draft.week);
       content += `\n**${t(locale, 'week_prefix')}** ${mapTitle} (\`${weekInTicks}\`)`;
-      const weekCtx = findWeekContext(rotations.en, rotations.ru, draft.week);
       if (weekCtx) {
         const wk = locale === 'en' ? weekCtx.weekEn : weekCtx.weekRu;
         const m1 = escapeDiscordItalic(trunc(String(wk.mod1 ?? ''), MOD_TRUNC));
@@ -314,8 +318,7 @@ function buildMessagePayloadCore(session, ctx) {
         const label = locale === 'en' ? z.zoneEn : z.zoneRu;
         const matchesSaved =
           cell?.zone_en &&
-          cell.zone_en === z.location &&
-          (cell.zone_ru === z.zoneRu || cell.zone_ru === z.zoneEn);
+          cell.zone_en === z.location;
         row.addComponents(
           new ButtonBuilder()
             .setCustomId(appendFlowSuffix(`waves:z:${i}`, session.sourceCommand))
@@ -393,8 +396,7 @@ function buildMessagePayloadCore(session, ctx) {
       const unknownSaved =
         Boolean(cell?.zone_en) &&
         cell.zone_en === zoneLoc &&
-        !String(cell.spawn_en ?? '').trim() &&
-        !String(cell.spawn_ru ?? '').trim();
+        !String(cell.spawn_en ?? '').trim();
       const unkRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(appendFlowSuffix('waves:spawn:unknown', session.sourceCommand))
@@ -441,8 +443,7 @@ function buildMessagePayloadCore(session, ctx) {
         locale === 'en' ? enMap.zones_spawns[i].zone : ruMap.zones_spawns[i].zone;
       const matchesSaved =
         cell?.zone_en &&
-        cell.zone_en === enMap.zones_spawns[i].zone &&
-        cell.zone_ru === ruMap.zones_spawns[i].zone;
+        cell.zone_en === enMap.zones_spawns[i].zone;
       row.addComponents(
         new ButtonBuilder()
           .setCustomId(appendFlowSuffix(`waves:z:${i}`, session.sourceCommand))
@@ -470,7 +471,6 @@ function buildMessagePayloadCore(session, ctx) {
         ? enMap.zones_spawns[zi]?.zone ?? ''
         : ruMap.zones_spawns[zi]?.zone ?? '';
     const zoneEnPick = enMap.zones_spawns[zi]?.zone ?? '';
-    const zoneRuPick = ruMap.zones_spawns[zi]?.zone ?? '';
     let content =
       pw != null && ps != null
         ? `${formatWaveSpawnHeader(locale, pw, ps)}\n**${t(locale, 'zone_line_prefix')}** ${trunc(zoneNameRaw, 300)}\n${t(locale, 'choose_spawn')}\n${t(locale, 'spawn_unknown_hint')}`
@@ -483,7 +483,7 @@ function buildMessagePayloadCore(session, ctx) {
       const label = locale === 'en' ? spEn[i] : spRu[i] ?? spEn[i];
       const matchesSaved =
         Boolean(cell?.spawn_en) &&
-        (cell.spawn_en === spEn[i] || cell.spawn_ru === spRu[i]);
+        cell.spawn_en === spEn[i];
       cur.addComponents(
         new ButtonBuilder()
           .setCustomId(appendFlowSuffix(`waves:s:${i}`, session.sourceCommand))
@@ -500,9 +500,7 @@ function buildMessagePayloadCore(session, ctx) {
     const unknownSaved =
       Boolean(cell?.zone_en) &&
       cell.zone_en === zoneEnPick &&
-      cell.zone_ru === zoneRuPick &&
-      !String(cell.spawn_en ?? '').trim() &&
-      !String(cell.spawn_ru ?? '').trim();
+      !String(cell.spawn_en ?? '').trim();
     spawnRows.push(
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()

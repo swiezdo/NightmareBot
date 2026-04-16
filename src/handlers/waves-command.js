@@ -8,14 +8,15 @@ import { formatYoteiRotationEmbedPayloads } from '../utils/yotei-waves-format.js
 /**
  * /waves в ЛС или в текстовом канале гильдии; прочие контексты — эфемерное предупреждение (текст на англ.).
  * @param {import('discord.js').ChatInputCommandInteraction} interaction
+ * @param {'en' | 'ru'} locale
  */
-async function ensureWavesChannel(interaction) {
+async function ensureWavesChannel(interaction, locale) {
   const ch = interaction.channel;
   if (!ch) return false;
   if (ch.type === ChannelType.DM) return true;
   if (interaction.inGuild() && ch.isTextBased()) return true;
   if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-    await interaction.reply({ content: t('en', 'waves_wrong_channel'), ephemeral: true });
+    await interaction.reply({ content: t(locale, 'waves_wrong_channel'), ephemeral: true });
   }
   return false;
 }
@@ -56,7 +57,7 @@ export async function handleWavesCommand(interaction) {
   const lang = wavesLang(interaction);
   const game = interaction.options.getString('game', true);
 
-  if (!(await ensureWavesChannel(interaction))) return;
+  if (!(await ensureWavesChannel(interaction, lang))) return;
 
   if (game === 'yotei') {
     const token = process.env.NIGHTMARE_CLUB_YOTEI_TOKEN?.trim();

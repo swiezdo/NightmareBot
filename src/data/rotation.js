@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import { ROTATION_EN_PATH, ROTATION_RU_PATH } from '../paths.js';
 
+/** @type {{ en: object[], ru: object[], weeksList: { code: string, labelEn: string, labelRu: string }[] } | null} */
+let rotationsCache = null;
+
 /**
  * @param {unknown} spawns
  * @returns {string[]}
@@ -37,6 +40,8 @@ export function compareWeekCodes(a, b) {
  * @returns {{ en: RotationMap[], ru: RotationMap[], weeksList: { code: string, labelEn: string, labelRu: string }[] }}
  */
 export function loadRotations() {
+  if (rotationsCache) return rotationsCache;
+
   const en = /** @type {RotationMap[]} */ (
     JSON.parse(fs.readFileSync(ROTATION_EN_PATH, 'utf8'))
   );
@@ -72,7 +77,12 @@ export function loadRotations() {
       };
     });
 
-  return { en, ru, weeksList };
+  rotationsCache = { en, ru, weeksList };
+  return rotationsCache;
+}
+
+export function invalidateRotationsCache() {
+  rotationsCache = null;
 }
 
 /**
@@ -129,10 +139,9 @@ export function translateZoneSpawn(enMap, ruMap, zoneEn, spawnEn) {
 
 /**
  * @param {object} enObj
- * @param {object} ruObj
  */
-function objectivesToTsushima(enObj, ruObj) {
-  /** @type {Record<string, { objective_en: string, objective_ru: string, objective_icon: string, objective_num: number }>} */
+function objectivesToTsushima(enObj) {
+  /** @type {Record<string, { objective_en: string, objective_icon: string, objective_num: number }>} */
   const out = {};
   for (let i = 1; i <= 5; i++) {
     const k = `objective${i}`;
@@ -140,7 +149,6 @@ function objectivesToTsushima(enObj, ruObj) {
     const numKey = `objective${i}_num`;
     out[`objective_${i}`] = {
       objective_en: String(enObj[k] ?? ''),
-      objective_ru: String(ruObj[k] ?? ''),
       objective_icon: String(enObj[iconKey] ?? ''),
       objective_num: Number(enObj[numKey] ?? 0),
     };
@@ -152,36 +160,33 @@ function objectivesToTsushima(enObj, ruObj) {
  * @param {{ weekEn: object, weekRu: object, enMap: RotationMap, ruMap: RotationMap }} ctx
  */
 export function buildDraftFromWeek(ctx) {
-  const { weekEn, weekRu, enMap, ruMap } = ctx;
+  const { weekEn, enMap } = ctx;
   return {
     week: weekEn.code,
     credits: '',
     map_slug: enMap.slug,
     map_name_en: enMap.name,
-    map_name_ru: ruMap.name,
     mods: [
       {
         mod1_en: weekEn.mod1,
-        mod1_ru: weekRu.mod1,
         mod1_icon: weekEn.mod1_icon,
         mod2_en: weekEn.mod2,
-        mod2_ru: weekRu.mod2,
         mod2_icon: weekEn.mod2_icon,
       },
     ],
-    objectives: objectivesToTsushima(enMap.objectives, ruMap.objectives),
+    objectives: objectivesToTsushima(enMap.objectives),
     waves: createEmptyWaves(),
   };
 }
 
 function createEmptyWaves() {
-  /** @type {Record<string, Record<string, { zone_en: string, zone_ru: string, spawn_en: string, spawn_ru: string }>>} */
+  /** @type {Record<string, Record<string, { zone_en: string, spawn_en: string }>>} */
   const waves = {};
   for (let w = 1; w <= 15; w++) {
     waves[`wave_${w}`] = {
-      '1': { zone_en: '', zone_ru: '', spawn_en: '', spawn_ru: '' },
-      '2': { zone_en: '', zone_ru: '', spawn_en: '', spawn_ru: '' },
-      '3': { zone_en: '', zone_ru: '', spawn_en: '', spawn_ru: '' },
+      '1': { zone_en: '', spawn_en: '' },
+      '2': { zone_en: '', spawn_en: '' },
+      '3': { zone_en: '', spawn_en: '' },
     };
   }
   return waves;
@@ -189,16 +194,14 @@ function createEmptyWaves() {
 
 /** Yōtei: 12 волн; слоты 1–4 (для волн 1–9 используются только 1–3). */
 export function createEmptyYoteiWaves() {
-  /** @type {Record<string, Record<string, { zone_en: string, zone_ru: string, spawn_en: string, spawn_ru: string, attunements: string[] }>>} */
+  /** @type {Record<string, Record<string, { zone_en: string, spawn_en: string, attunements: string[] }>>} */
   const waves = {};
   for (let w = 1; w <= 12; w++) {
     waves[`wave_${w}`] = {};
     for (let s = 1; s <= 4; s++) {
       waves[`wave_${w}`][String(s)] = {
         zone_en: '',
-        zone_ru: '',
         spawn_en: '',
-        spawn_ru: '',
         attunements: [],
       };
     }
@@ -207,12 +210,11 @@ export function createEmptyYoteiWaves() {
 }
 
 function emptyObjectives() {
-  /** @type {Record<string, { objective_en: string, objective_ru: string, objective_icon: string, objective_num: number }>} */
+  /** @type {Record<string, { objective_en: string, objective_icon: string, objective_num: number }>} */
   const out = {};
   for (let i = 1; i <= 5; i++) {
     out[`objective_${i}`] = {
       objective_en: '',
-      objective_ru: '',
       objective_icon: '',
       objective_num: 0,
     };
@@ -227,14 +229,11 @@ export function createEmptyDraft() {
     credits: '',
     map_slug: '',
     map_name_en: '',
-    map_name_ru: '',
     mods: [
       {
         mod1_en: '',
-        mod1_ru: '',
         mod1_icon: '',
         mod2_en: '',
-        mod2_ru: '',
         mod2_icon: '',
       },
     ],
@@ -276,9 +275,7 @@ function normalizeYoteiWavesBlock(waves) {
           : {};
       out[key][slot] = {
         zone_en: String(srcCell.zone_en ?? ''),
-        zone_ru: String(srcCell.zone_ru ?? ''),
         spawn_en: String(srcCell.spawn_en ?? ''),
-        spawn_ru: String(srcCell.spawn_ru ?? ''),
         attunements: Array.isArray(srcCell.attunements)
           ? srcCell.attunements.map((x) => String(x).trim()).filter(Boolean)
           : [],
@@ -332,7 +329,6 @@ export function normalizeDraftShape(raw, game = 'tsushima') {
     credits: String(o.credits ?? base.credits),
     map_slug: String(o.map_slug ?? base.map_slug),
     map_name_en: String(o.map_name_en ?? base.map_name_en),
-    map_name_ru: String(o.map_name_ru ?? base.map_name_ru),
     mods: normalizeModsBlock(o.mods, base.mods),
     objectives: normalizeObjectivesBlock(o.objectives, base.objectives),
     waves: normalizeWavesBlock(o.waves),
@@ -353,10 +349,8 @@ function normalizeModsBlock(mods, baseMods) {
   return [
     {
       mod1_en: String(first.mod1_en ?? b0.mod1_en),
-      mod1_ru: String(first.mod1_ru ?? b0.mod1_ru),
       mod1_icon: String(first.mod1_icon ?? b0.mod1_icon),
       mod2_en: String(first.mod2_en ?? b0.mod2_en),
-      mod2_ru: String(first.mod2_ru ?? b0.mod2_ru),
       mod2_icon: String(first.mod2_icon ?? b0.mod2_icon),
     },
   ];
@@ -364,10 +358,10 @@ function normalizeModsBlock(mods, baseMods) {
 
 /**
  * @param {unknown} objectives
- * @param {Record<string, { objective_en: string, objective_ru: string, objective_icon: string, objective_num: number }>} base
+ * @param {Record<string, { objective_en: string, objective_icon: string, objective_num: number }>} base
  */
 function normalizeObjectivesBlock(objectives, base) {
-  /** @type {Record<string, { objective_en: string, objective_ru: string, objective_icon: string, objective_num: number }>} */
+  /** @type {Record<string, { objective_en: string, objective_icon: string, objective_num: number }>} */
   const out = { ...base };
   const src = objectives && typeof objectives === 'object' ? /** @type {Record<string, unknown>} */ (objectives) : {};
   for (let i = 1; i <= 5; i++) {
@@ -376,7 +370,6 @@ function normalizeObjectivesBlock(objectives, base) {
     const b = base[k];
     out[k] = {
       objective_en: String(s.objective_en ?? b.objective_en),
-      objective_ru: String(s.objective_ru ?? b.objective_ru),
       objective_icon: String(s.objective_icon ?? b.objective_icon),
       objective_num: Number(s.objective_num ?? b.objective_num),
     };
@@ -399,9 +392,7 @@ function normalizeWavesBlock(waves) {
           : {};
       out[key][slot] = {
         zone_en: String(srcCell.zone_en ?? ''),
-        zone_ru: String(srcCell.zone_ru ?? ''),
         spawn_en: String(srcCell.spawn_en ?? ''),
-        spawn_ru: String(srcCell.spawn_ru ?? ''),
       };
     }
   }

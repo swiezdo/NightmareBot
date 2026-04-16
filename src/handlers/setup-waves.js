@@ -1,7 +1,5 @@
 import {
   ActionRowBuilder,
-  ChannelType,
-  MessageFlags,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -12,41 +10,43 @@ import {
   findWeekContext,
   normalizeSpawns,
   buildDraftFromWeek,
-  createEmptyDraft,
-  createEmptyYoteiDraft,
 } from '../data/rotation.js';
 import { loadYoteiLabels, buildYoteiDraftForCycleWeek } from '../data/yotei-labels.js';
 import {
   getYoteiMapZoneRows,
   YOTEI_SPAWN_SLUGS,
-  labelForYoteiSpawnSlug,
 } from '../data/yotei-map-zones.js';
-import { loadSession, saveSession, deleteSession } from '../db/session.js';
+import { loadSession, saveSession } from '../db/session.js';
 import { editExpiredWizardMessageFromInteraction } from '../utils/session-expired-wizard.js';
 import { appendFlowSuffix, stripFlowSuffix } from '../wizard/wave-custom-id.js';
 import { buildMessagePayload } from '../wizard/ui.js';
 import { setWaveCell, isGridComplete } from '../wizard/grid.js';
 import {
   buildDraftFromTsushimaReadApi,
-  buildTsushimaApiPayload,
   CREDIT_TEXT_MAX,
   DEFAULT_TSUSHIMA_CREDIT_TEXT,
   fetchTsushimaRotationRead,
   getTsushimaRotationPutUrl,
-  pushTsushimaToNightmare,
-  summarizeNightmareApiFailure,
 } from '../api/nightmare-tsushima.js';
 import {
   fetchYoteiRotationRead,
   buildDraftFromYoteiReadApi,
-  buildYoteiApiPayload,
   getYoteiRotationPutUrl,
-  pushYoteiToNightmare,
 } from '../api/nightmare-yotei.js';
 import { getWaveGridSpec } from '../wizard/game-geometry.js';
 import { isAllowedForSetupCommands } from '../utils/setup-access.js';
+import {
+  DISCORD_CONTENT_MAX,
+  mergePayloadContent,
+  editWizardMessageOrRecover,
+} from './setup-waves/interaction-utils.js';
+import {
+  publishTsushimaAfterCredits,
+  publishYoteiAfterCredits,
+  finishYoteiAfterCredits,
+} from './setup-waves/publish-after-credits.js';
+import { ensureDm, dismissOtherFlowSession, newSession } from './setup-waves/session-flow.js';
 
-const DISCORD_CONTENT_MAX = 2000;
 const HIDDEN_TEMPLE_MAP_SLUG = 'hidden-temple';
 const YOTEI_ATTUNEMENTS = ['Sun', 'Moon', 'Storm'];
 const ATTUNEMENT_BY_BUTTON = {
@@ -64,349 +64,16 @@ function wizardUiContext(rotations, yoteiLabels) {
 }
 
 /**
- * @param {import('discord.js').ModalSubmitInteraction} interaction
- * @param {object} session
- * @param {'en' | 'ru'} loc
- */
-async function publishTsushimaAfterCredits(interaction, session, loc) {
-  const apiUrl = getTsushimaRotationPutUrl();
-  const apiToken = String(process.env.NIGHTMARE_CLUB_TSUSHIMA_TOKEN ?? '').trim();
-
-  await interaction.deferReply();
-
-  if (!apiUrl || !apiToken) {
-    await interaction.editReply({
-      content: t(loc, 'api_not_configured').slice(0, DISCORD_CONTENT_MAX),
-    });
-    return;
-  }
-
-  /** @type {Record<string, unknown>} */
-  let payload;
-  try {
-    payload = buildTsushimaApiPayload(session.draft);
-  } catch (e) {
-    console.error('buildTsushimaApiPayload', e);
-    await interaction.editReply({ content: t(loc, 'api_payload_error') });
-    return;
-  }
-
-  try {
-    const result = await pushTsushimaToNightmare(payload, { url: apiUrl, token: apiToken });
-    if (!result.ok) {
-      console.error('pushTsushimaToNightmare', result.status, result.json);
-      const detail = summarizeNightmareApiFailure(result);
-      const msg = `${t(loc, 'api_publish_failed_prefix')}\n${detail}`.slice(0, DISCORD_CONTENT_MAX);
-      await interaction.editReply({ content: msg });
-      return;
-    }
-
-    deleteSession(interaction.user.id, session.sourceCommand);
-
-    const weekStart =
-      result.json &&
-      typeof result.json === 'object' &&
-      result.json !== null &&
-      'week_start' in result.json
-        ? String(/** @type {{ week_start?: string }} */ (result.json).week_start ?? '')
-        : '';
-    const weekLine = weekStart ? `\n${t(loc, 'api_week_line').replace('{week}', weekStart)}` : '';
-    const finalContent = `${t(loc, 'saved_success_api')}${weekLine}\n${t(loc, 'confirm_saved')}`.slice(
-      0,
-      DISCORD_CONTENT_MAX,
-    );
-
-    await interaction.editReply({ content: finalContent });
-
-    const wizardEditPayload = {
-      content: finalContent,
-      components: [],
-      embeds: [],
-    };
-
-    /** @type {import('discord.js').Message | null} */
-    let wizardMsg = null;
-    if (interaction.isFromMessage()) {
-      wizardMsg = interaction.message;
-    } else if (session.messageId && interaction.channel?.isTextBased()) {
-      try {
-        wizardMsg = await interaction.channel.messages.fetch(session.messageId);
-      } catch {
-        wizardMsg = null;
-      }
-    }
-
-    if (wizardMsg && !wizardMsg.flags.has(MessageFlags.Ephemeral)) {
-      try {
-        await wizardMsg.edit(wizardEditPayload);
-      } catch (e) {
-        if (!isDiscordUnknownMessage(e)) {
-          console.error('edit wizard after publish', e);
-        }
-      }
-    }
-  } catch (e) {
-    console.error('publishTsushimaAfterCredits', e);
-    await interaction.editReply({ content: t(loc, 'api_network_error') });
-  }
-}
-
-/**
- * @param {import('discord.js').ModalSubmitInteraction} interaction
- * @param {object} session
- * @param {'en' | 'ru'} loc
- */
-async function publishYoteiAfterCredits(interaction, session, loc) {
-  const apiUrl = getYoteiRotationPutUrl();
-  const apiToken = String(process.env.NIGHTMARE_CLUB_YOTEI_TOKEN ?? '').trim();
-
-  await interaction.deferReply();
-
-  if (!apiUrl || !apiToken) {
-    await interaction.editReply({
-      content: t(loc, 'waves_yotei_publish_not_configured').slice(0, DISCORD_CONTENT_MAX),
-    });
-    return;
-  }
-
-  /** @type {Record<string, unknown>} */
-  let payload;
-  try {
-    payload = buildYoteiApiPayload(session.draft);
-  } catch (e) {
-    console.error('buildYoteiApiPayload', e);
-    await interaction.editReply({ content: t(loc, 'api_payload_error') });
-    return;
-  }
-
-  try {
-    const result = await pushYoteiToNightmare(payload, { url: apiUrl, token: apiToken });
-    if (!result.ok) {
-      console.error('pushYoteiToNightmare', result.status, result.json);
-      const detail = summarizeNightmareApiFailure(result);
-      const msg = `${t(loc, 'api_publish_failed_prefix')}\n${detail}`.slice(0, DISCORD_CONTENT_MAX);
-      await interaction.editReply({ content: msg });
-      return;
-    }
-
-    deleteSession(interaction.user.id, session.sourceCommand);
-
-    const weekStart =
-      result.json &&
-      typeof result.json === 'object' &&
-      result.json !== null &&
-      'week_start' in result.json
-        ? String(/** @type {{ week_start?: string }} */ (result.json).week_start ?? '')
-        : '';
-    const weekLine = weekStart ? `\n${t(loc, 'api_week_line').replace('{week}', weekStart)}` : '';
-    const finalContent = `${t(loc, 'saved_success_api')}${weekLine}\n${t(loc, 'confirm_saved')}`.slice(
-      0,
-      DISCORD_CONTENT_MAX,
-    );
-
-    await interaction.editReply({ content: finalContent });
-
-    const wizardEditPayload = {
-      content: finalContent,
-      components: [],
-      embeds: [],
-    };
-
-    /** @type {import('discord.js').Message | null} */
-    let wizardMsg = null;
-    if (interaction.isFromMessage()) {
-      wizardMsg = interaction.message;
-    } else if (session.messageId && interaction.channel?.isTextBased()) {
-      try {
-        wizardMsg = await interaction.channel.messages.fetch(session.messageId);
-      } catch {
-        wizardMsg = null;
-      }
-    }
-
-    if (wizardMsg && !wizardMsg.flags.has(MessageFlags.Ephemeral)) {
-      try {
-        await wizardMsg.edit(wizardEditPayload);
-      } catch (e) {
-        if (!isDiscordUnknownMessage(e)) {
-          console.error('edit wizard after yotei publish', e);
-        }
-      }
-    }
-  } catch (e) {
-    console.error('publishYoteiAfterCredits', e);
-    await interaction.editReply({ content: t(loc, 'api_network_error') });
-  }
-}
-
-/**
- * После модалки Credits для Yōtei, если PUT не настроен: закрыть сессию и заглушка.
- *
- * @param {import('discord.js').ModalSubmitInteraction} interaction
- * @param {object} session
- * @param {'en' | 'ru'} loc
- */
-async function finishYoteiAfterCredits(interaction, session, loc) {
-  const creditsFinal = String(session.draft?.credits ?? '').trim() || DEFAULT_TSUSHIMA_CREDIT_TEXT;
-
-  await interaction.deferReply();
-
-  deleteSession(interaction.user.id, session.sourceCommand);
-
-  let body = `${t(loc, 'yotei_publish_not_implemented')}\n\n${t(loc, 'yotei_credits_local_note')}`;
-  const room = DISCORD_CONTENT_MAX - body.length - 2;
-  if (room > 20 && creditsFinal) {
-    const snippet =
-      creditsFinal.length > room ? `${creditsFinal.slice(0, room - 1)}…` : creditsFinal;
-    body = `${body}\n${snippet}`;
-  }
-  if (body.length > DISCORD_CONTENT_MAX) {
-    body = `${body.slice(0, DISCORD_CONTENT_MAX - 1)}…`;
-  }
-
-  await interaction.editReply({ content: body });
-
-  const wizardEditPayload = {
-    content: body,
-    components: [],
-    embeds: [],
-  };
-
-  /** @type {import('discord.js').Message | null} */
-  let wizardMsg = null;
-  if (interaction.isFromMessage()) {
-    wizardMsg = interaction.message;
-  } else if (session.messageId && interaction.channel?.isTextBased()) {
-    try {
-      wizardMsg = await interaction.channel.messages.fetch(session.messageId);
-    } catch {
-      wizardMsg = null;
-    }
-  }
-
-  if (wizardMsg && !wizardMsg.flags.has(MessageFlags.Ephemeral)) {
-    try {
-      await wizardMsg.edit(wizardEditPayload);
-    } catch (e) {
-      if (!isDiscordUnknownMessage(e)) {
-        console.error('edit wizard after yotei credits', e);
-      }
-    }
-  }
-}
-
-/**
- * @param {string} [prefix]
- * @param {{ content: string, components: import('discord.js').ActionRowBuilder[], embeds?: import('discord.js').EmbedBuilder[] }} payload
- */
-function mergePayloadContent(prefix, payload) {
-  let content = prefix ? `${prefix}\n\n${payload.content}` : payload.content;
-  if (content.length > DISCORD_CONTENT_MAX) {
-    content = `${content.slice(0, DISCORD_CONTENT_MAX - 1)}…`;
-  }
-  return {
-    content,
-    components: payload.components,
-    embeds: payload.embeds ?? [],
-  };
-}
-
-/**
- * @param {unknown} e
- */
-function isDiscordUnknownMessage(e) {
-  return (
-    e !== null &&
-    typeof e === 'object' &&
-    'code' in e &&
-    /** @type {{ code?: number }} */ (e).code === 10_008
-  );
-}
-
-/**
- * After deferUpdate: обновить сообщение мастера через interaction.editReply (тот же webhook, что и у slash/кнопки).
- * При удалении сообщения (10008) — сбрасываем session.messageId и шлём followUp с подсказкой.
- *
- * @param {import('discord.js').MessageComponentInteraction} interaction
- * @param {object} session
- * @param {import('discord.js').InteractionEditReplyOptions} payload
- */
-async function editWizardMessageOrRecover(interaction, session, payload) {
-  try {
-    await interaction.editReply(payload);
-  } catch (e) {
-    if (!isDiscordUnknownMessage(e)) throw e;
-    session.messageId = null;
-    session.channelId = null;
-    saveSession(session);
-    const loc = /** @type {'en' | 'ru'} */ (session.locale ?? 'en');
-    try {
-      await interaction.followUp({
-        content: t(loc, 'wizard_message_deleted').slice(0, DISCORD_CONTENT_MAX),
-      });
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
-/**
  * @param {import('discord.js').Interaction} interaction
+ * @returns {'en' | 'ru'}
  */
-async function ensureDm(interaction) {
-  const ch = interaction.channel;
-  if (ch && ch.type === ChannelType.DM) return true;
-  if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-    await interaction.reply({ content: t('en', 'dm_only'), ephemeral: true });
-  }
-  return false;
-}
-
-/**
- * @param {string} userId
- * @param {string} game
- * @param {{ draft?: object, sourceCommand?: string }} [options]
- */
-/**
- * Закрыть панель мастера другого потока (setup ↔ edit), чтобы в ЛС не оставалось двух наборов кнопок.
- *
- * @param {import('discord.js').Interaction} interaction
- * @param {'setup-waves' | 'edit-waves'} otherFlow
- */
-async function dismissOtherFlowSession(interaction, otherFlow) {
-  const loaded = loadSession(interaction.user.id, otherFlow);
-  if (loaded.status !== 'ok') return;
-  const ch = interaction.channel;
-  const mid = loaded.session.messageId;
-  if (mid && ch?.isTextBased()) {
-    try {
-      await ch.messages.delete(mid);
-    } catch {
-      /* сообщение уже удалено или недоступно */
-    }
-  }
-  deleteSession(interaction.user.id, otherFlow);
-}
-
-function newSession(userId, game, options = {}) {
-  const sourceCommand = options.sourceCommand ?? 'setup-waves';
-  const defaultDraft =
-    options.draft ??
-    (game === 'yotei' ? createEmptyYoteiDraft() : createEmptyDraft());
-  return {
-    userId,
-    game,
-    sourceCommand,
-    locale: null,
-    messageId: null,
-    channelId: null,
-    draft: defaultDraft,
-    uiStep: 'lang',
-    gridPage: 0,
-    pendingWave: null,
-    pendingSpawn: null,
-    pendingZoneIndex: null,
-  };
+function interactionLocale(interaction) {
+  const locale = String(
+    (interaction.isChatInputCommand() || interaction.isMessageComponent() || interaction.isModalSubmit()
+      ? interaction.locale
+      : '') ?? '',
+  ).toLowerCase();
+  return locale.startsWith('ru') ? 'ru' : 'en';
 }
 
 /**
@@ -462,17 +129,19 @@ function toggleAttunementSelection(current, attName) {
  * @param {import('discord.js').Client} _client
  */
 export async function handleSetupWavesInteraction(interaction, _client) {
+  const loc = interactionLocale(interaction);
+
   if (!isAllowedForSetupCommands(interaction.user.id)) {
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: t('ru', 'forbidden'),
+        content: t(loc, 'forbidden'),
         ephemeral: interaction.inGuild(),
       });
     }
     return;
   }
 
-  if (!(await ensureDm(interaction))) return;
+  if (!(await ensureDm(interaction, loc))) return;
 
   const rotations = loadRotations();
   const yoteiLabels = loadYoteiLabels();
@@ -481,7 +150,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup-waves') {
     const game = interaction.options.getString('game', true);
     if (game !== 'tsushima' && game !== 'yotei') {
-      await interaction.reply({ content: t('en', 'game_not_available') });
+      await interaction.reply({ content: t(loc, 'game_not_available') });
       return;
     }
 
@@ -510,7 +179,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         session.messageId = null;
         session.channelId = null;
 
-        const ack = `${t('ru', 'setup_reset')} · ${t('en', 'setup_reset')}`;
+        const ack = t(loc, 'setup_reset');
         await interaction.reply({ content: ack });
 
         /** @type {import('discord.js').Message} */
@@ -542,11 +211,10 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   if (interaction.isChatInputCommand() && interaction.commandName === 'edit-waves') {
     const game = interaction.options.getString('game', true);
     if (game !== 'tsushima' && game !== 'yotei') {
-      await interaction.reply({ content: t('en', 'game_not_available') });
+      await interaction.reply({ content: t(loc, 'game_not_available') });
       return;
     }
 
-    const loc = isAllowedForSetupCommands(interaction.user.id) ? 'ru' : 'en';
     await interaction.deferReply();
 
     if (game === 'yotei') {
@@ -617,7 +285,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
           sessionY.messageId = null;
           sessionY.channelId = null;
 
-          let ack = `${t('ru', 'edit_panel_reopened')} · ${t('en', 'edit_panel_reopened')}`;
+          let ack = t(loc, 'edit_panel_reopened');
           if (builtY.multiMap) {
             ack = `${ack}\n${t(loc, 'edit_yotei_multi_map_note')}`;
           }
@@ -723,7 +391,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         session.messageId = null;
         session.channelId = null;
 
-        let ack = `${t('ru', 'edit_panel_reopened')} · ${t('en', 'edit_panel_reopened')}`;
+        let ack = t(loc, 'edit_panel_reopened');
         if (built.multiMap) {
           ack = `${ack}\n${t(loc, 'edit_tsushima_multi_map_note')}`;
         }
@@ -767,15 +435,11 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     const loadedModal = loadSession(interaction.user.id, flow);
     if (loadedModal.status === 'expired') {
       await editExpiredWizardMessageFromInteraction(interaction, loadedModal);
-      await interaction.reply({
-        content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
-      });
+      await interaction.reply({ content: t(loc, 'session_stale') });
       return;
     }
     if (loadedModal.status !== 'ok') {
-      await interaction.reply({
-        content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
-      });
+      await interaction.reply({ content: t(loc, 'session_stale') });
       return;
     }
     const sessionModal = loadedModal.session;
@@ -806,16 +470,12 @@ export async function handleSetupWavesInteraction(interaction, _client) {
   const loaded = loadSession(interaction.user.id, flow);
   if (loaded.status === 'expired') {
     await editExpiredWizardMessageFromInteraction(interaction, loaded);
-    await interaction.reply({
-      content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
-    });
+    await interaction.reply({ content: t(loc, 'session_stale') });
     return;
   }
   let session = loaded.status === 'ok' ? loaded.session : null;
   if (!session) {
-    await interaction.reply({
-      content: `${t('ru', 'session_stale')}\n${t('en', 'session_stale')}`,
-    });
+    await interaction.reply({ content: t(loc, 'session_stale') });
     return;
   }
 
@@ -1066,16 +726,12 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     }
     const { enMap, ruMap } = ctx;
     const spEn = normalizeSpawns(enMap.zones_spawns[zi]?.spawns);
-    const spRu = normalizeSpawns(ruMap.zones_spawns[zi]?.spawns);
 
     if (spEn.length <= 1) {
       const zoneEn = enMap.zones_spawns[zi].zone;
-      const zoneRu = ruMap.zones_spawns[zi].zone;
       setWaveCell(session.draft, /** @type {number} */ (session.pendingWave), /** @type {number} */ (session.pendingSpawn), {
         zoneEn,
-        zoneRu,
         spawnEn: spEn[0] ?? '',
-        spawnRu: spRu[0] ?? '',
       });
       session.uiStep = 'grid';
       session.pendingWave = null;
@@ -1171,9 +827,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         /** @type {number} */ (session.pendingSpawn),
         {
           zoneEn: zy.location,
-          zoneRu: zy.zoneRu,
           spawnEn: '',
-          spawnRu: '',
           attunements: keepAttunements,
         },
       );
@@ -1219,12 +873,9 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     const ziU = session.pendingZoneIndex;
     const { enMap: enU, ruMap: ruU } = ctxUnk;
     const zoneEnU = enU.zones_spawns[ziU].zone;
-    const zoneRuU = ruU.zones_spawns[ziU].zone;
     setWaveCell(session.draft, /** @type {number} */ (session.pendingWave), /** @type {number} */ (session.pendingSpawn), {
       zoneEn: zoneEnU,
-      zoneRu: zoneRuU,
       spawnEn: '',
-      spawnRu: '',
     });
     session.uiStep = 'grid';
     session.pendingWave = null;
@@ -1264,7 +915,6 @@ export async function handleSetupWavesInteraction(interaction, _client) {
       }
       const zs = yRowsS[ziS];
       const spawnSlug = YOTEI_SPAWN_SLUGS[si];
-      const locSpawn = /** @type {'en' | 'ru'} */ (session.locale);
       const keepAttunements = normalizeAttunementSelection(getCurrentYoteiCell(session)?.attunements);
       setWaveCell(
         session.draft,
@@ -1272,9 +922,7 @@ export async function handleSetupWavesInteraction(interaction, _client) {
         /** @type {number} */ (session.pendingSpawn),
         {
           zoneEn: zs.location,
-          zoneRu: zs.zoneRu,
           spawnEn: spawnSlug,
-          spawnRu: labelForYoteiSpawnSlug(zs, spawnSlug, locSpawn),
           attunements: keepAttunements,
         },
       );
@@ -1315,15 +963,10 @@ export async function handleSetupWavesInteraction(interaction, _client) {
     const zi = session.pendingZoneIndex;
     const { enMap, ruMap } = ctx;
     const spEn = normalizeSpawns(enMap.zones_spawns[zi]?.spawns);
-    const spRu = normalizeSpawns(ruMap.zones_spawns[zi]?.spawns);
     const zoneEn = enMap.zones_spawns[zi].zone;
-    const zoneRu = ruMap.zones_spawns[zi].zone;
-
     setWaveCell(session.draft, /** @type {number} */ (session.pendingWave), /** @type {number} */ (session.pendingSpawn), {
       zoneEn,
-      zoneRu,
       spawnEn: spEn[si] ?? '',
-      spawnRu: spRu[si] ?? '',
     });
     session.uiStep = 'grid';
     session.pendingWave = null;

@@ -705,15 +705,13 @@ export function formatYoteiSlotErrorsEcho(waveMap, slotErrors) {
 
 /**
  * @param {object} draft
- * @param {{ w: number, s: number, zoneEn: string, zoneRu: string, spawnEn: string, spawnRu: string, attunements?: string[] }[]} assignments
+ * @param {{ w: number, s: number, zoneEn: string, spawnEn: string, attunements?: string[] }[]} assignments
  */
 export function applyBulkAssignments(draft, assignments) {
   for (const a of assignments) {
     setWaveCell(draft, a.w, a.s, {
       zoneEn: a.zoneEn,
-      zoneRu: a.zoneRu,
       spawnEn: a.spawnEn,
-      spawnRu: a.spawnRu,
       attunements: Array.isArray(a.attunements) ? a.attunements : [],
     });
   }

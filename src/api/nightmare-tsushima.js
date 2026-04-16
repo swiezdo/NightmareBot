@@ -1,6 +1,7 @@
 import { SLOTS_PER_WAVE, TOTAL_WAVES } from '../wizard/constants.js';
-import { findWeekContext, buildDraftFromWeek, translateZoneSpawn } from '../data/rotation.js';
+import { findWeekContext, buildDraftFromWeek } from '../data/rotation.js';
 import { normalizeWaveSpawns } from '../utils/tsushima-waves-format.js';
+import { readJsonOrNull, readJsonOrParseError } from './nightmare-http.js';
 
 /** Matches nightmare-club schema maxLength for credit_text. */
 export const CREDIT_TEXT_MAX = 500;
@@ -63,14 +64,7 @@ export async function pushTsushimaToNightmare(payload, { url, token }) {
     body: JSON.stringify(payload),
   });
 
-  const text = await res.text();
-  /** @type {unknown} */
-  let json;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = { _parse_error: true, _raw: text.slice(0, 500) };
-  }
+  const json = await readJsonOrParseError(res);
 
   const bodyOk =
     json &&
@@ -137,14 +131,7 @@ export async function fetchTsushimaRotationRead(opts) {
     },
   });
 
-  const text = await res.text();
-  /** @type {unknown} */
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = null;
-  }
+  const data = await readJsonOrNull(res);
 
   return { ok: res.ok, status: res.status, data };
 }
@@ -209,12 +196,9 @@ export function buildDraftFromTsushimaReadApi(apiJson, rotations) {
     for (const { order, zone, spawn } of spawns) {
       if (order < 1 || order > SLOTS_PER_WAVE) continue;
       const slot = String(order);
-      const tr = translateZoneSpawn(ctx.enMap, ctx.ruMap, zone, spawn);
       draft.waves[waveKey][slot] = {
         zone_en: zone,
-        zone_ru: tr.zone,
         spawn_en: spawn,
-        spawn_ru: tr.spawn,
       };
     }
   }

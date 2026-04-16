@@ -21,6 +21,12 @@ npm run deploy-commands   # when slash definitions change
 npm start
 ```
 
+### Tests
+
+```bash
+npm test
+```
+
 ## Data / SQLite
 
 - **Access:** **`ALLOWED_USER_IDS`** in `.env` lists **managers** (comma-separated or JSON array of Discord user IDs): they always may use `/setup-waves`, `/edit-waves`, bulk DM, and **`/whitelist-add`**, **`/whitelist-remove`**, **`/whitelist-show`** (all whitelist replies are ephemeral). Everyone else needs a row in table **`waves_setup_allowlist`** (added by managers). If **`ALLOWED_USER_IDS`** is empty, nobody can run whitelist commands; setup/edit then only works for users already present in that table (e.g. inserted manually). Upgrading from older configs: rename **`SETUP_WAVES_ALLOWED_USER_IDS`** → **`ALLOWED_USER_IDS`** in `.env`.
@@ -56,7 +62,9 @@ The bot process and sqlite-web both open the same SQLite file; avoid heavy write
 | `src/db/database.js` | SQLite init + legacy JSON migration |
 | `src/db/session.js` | Session load/save/delete |
 | `src/api/nightmare-tsushima.js` | `PUT` payload, `GET` Tsushima, draft build for `/edit-waves` and `/waves` |
-| `src/api/nightmare-yotei.js` | `GET` Yōtei rotation for `/waves`, `/edit-waves`, `buildDraftFromYoteiReadApi` |
+| `src/api/nightmare-yotei.js` | Yōtei canonical mapping (`api <-> draft <-> embeds`) |
+| `src/api/nightmare-yotei/transport.js` | Yōtei HTTP transport (`GET`/`PUT` + URL derivation) |
+| `src/api/nightmare-http.js` | Shared HTTP JSON parsing helpers for Nightmare API |
 | `src/wizard/game-geometry.js` | Wave grid geometry (15×3 Tsushima vs 12×3/4 Yōtei) |
 | `src/data/yotei-map-zones.js` | Zones + left/middle/right spawn labels per map from local Yōtei JSON |
 | `src/utils/wave-embed-lines.js` | Общая разметка волн (отступы, разделитель) для Tsushima и Yōtei |
@@ -64,5 +72,9 @@ The bot process and sqlite-web both open the same SQLite file; avoid heavy write
 | `src/data/yotei-labels.js` | Load `rotation_yotei_en.json` + `rotation_yotei_ru.json`, resolve labels; optional 12-week schedule via `getYoteiMapScheduledWeeks` |
 | `src/utils/yotei-waves-format.js` | Yōtei API → контент (карта) + 4 эмбеда (волны + футер карточки) |
 | `src/handlers/waves-command.js` | Slash `/waves` (guild or DM, no allowlist) |
+| `src/handlers/setup-waves/session-flow.js` | Session lifecycle helpers for setup/edit flows |
+| `src/handlers/setup-waves/publish-after-credits.js` | Publish/finalize handlers after Credits modal |
+| `src/handlers/setup-waves/interaction-utils.js` | Shared interaction reply/update/recovery helpers |
+| `test/*.test.js` | Node test runner coverage for API mapping, parser and draft/session shape |
 | `json/rotation_tsushima_*.json` | Rotation source data (week codes, RU cells, objectives) |
 | `json/rotation_yotei_en.json`, `json/rotation_yotei_ru.json` | Yōtei catalog: maps (nested zones, optional `scheduled_weeks`), `challenge_cards`, optional `cycle_length`; `emoji` for thumbnails |

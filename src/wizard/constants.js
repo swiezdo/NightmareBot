@@ -7,8 +7,3 @@ export const SLOTS_PER_WAVE = 3;
 export const WAVES_PER_PAGE = 3;
 /** Number of pagination pages. */
 export const GRID_PAGE_COUNT = Math.ceil(TOTAL_WAVES / WAVES_PER_PAGE);
-
-/** @deprecated use WAVES_PER_PAGE */
-export const WAVE_GROUPS = WAVES_PER_PAGE;
-/** @deprecated use SLOTS_PER_WAVE */
-export const SLOTS_PER_GROUP = SLOTS_PER_WAVE;

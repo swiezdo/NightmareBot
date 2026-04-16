@@ -3,13 +3,16 @@ import {
   getYoteiMapZoneRows,
   toYoteiLocationApiSlug,
   resolveYoteiSpawnPointSlug,
-  labelForYoteiSpawnSlug,
 } from '../data/yotei-map-zones.js';
-import { resolveYoteiZone, resolveYoteiMapTitle } from '../data/yotei-labels.js';
+import { resolveYoteiMapTitle } from '../data/yotei-labels.js';
 import { getWaveGridSpec } from '../wizard/game-geometry.js';
 import { CREDIT_TEXT_MAX, DEFAULT_TSUSHIMA_CREDIT_TEXT } from './nightmare-tsushima.js';
-
-const DEFAULT_YOTEI_READ_URL = 'https://nightmare.club/api/rotation/yotei';
+export {
+  getYoteiRotationReadUrl,
+  getYoteiRotationPutUrl,
+  pushYoteiToNightmare,
+  fetchYoteiRotationRead,
+} from './nightmare-yotei/transport.js';
 
 /**
  * @param {unknown} r
@@ -34,70 +37,6 @@ function normalizeYoteiSpawnsList(spawnsRaw) {
     );
 }
 
-/**
- * URL для GET текущей ротации Yōtei. NIGHTMARE_CLUB_YOTEI_READ_URL;
- * иначе из NIGHTMARE_CLUB_YOTEI_URL: …/api/rotations/yotei → …/api/rotation/yotei.
- */
-export function getYoteiRotationReadUrl() {
-  const explicit = process.env.NIGHTMARE_CLUB_YOTEI_READ_URL?.trim();
-  if (explicit) return explicit.replace(/\/$/, '');
-  const putUrl = process.env.NIGHTMARE_CLUB_YOTEI_URL?.trim();
-  if (putUrl) {
-    const derived = putUrl.replace(/\/api\/rotations\/yotei\/?$/i, '/api/rotation/yotei');
-    if (derived !== putUrl) return derived.replace(/\/$/, '');
-  }
-  return DEFAULT_YOTEI_READ_URL;
-}
-
-/**
- * URL для PUT (`/api/rotations/yotei`). Явный **NIGHTMARE_CLUB_YOTEI_URL**;
- * иначе из read URL: …/api/rotation/yotei → …/api/rotations/yotei.
- *
- * @returns {string} пустая строка, если вывести нельзя
- */
-export function getYoteiRotationPutUrl() {
-  const explicitPut = process.env.NIGHTMARE_CLUB_YOTEI_URL?.trim();
-  if (explicitPut) return explicitPut.replace(/\/$/, '');
-
-  const readUrl = getYoteiRotationReadUrl();
-  const derived = readUrl.replace(/\/api\/rotation\/yotei\/?$/i, '/api/rotations/yotei');
-  if (derived !== readUrl) return derived.replace(/\/$/, '');
-
-  return '';
-}
-
-/**
- * @param {Record<string, unknown>} payload
- * @param {{ url: string, token: string }} options
- * @returns {Promise<{ ok: boolean, status: number, json: unknown }>}
- */
-export async function pushYoteiToNightmare(payload, { url, token }) {
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const text = await res.text();
-  /** @type {unknown} */
-  let json;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = { _parse_error: true, _raw: text.slice(0, 500) };
-  }
-
-  const bodyOk =
-    json &&
-    typeof json === 'object' &&
-    !Array.isArray(json) &&
-    /** @type {{ ok?: boolean }} */ (json).ok === true;
-
-  return { ok: res.ok && bodyOk, status: res.status, json };
-}
 
 /**
  * @param {unknown} w
@@ -403,7 +342,6 @@ export function canonicalToDraft(canonical, labels) {
         rows.find((z) => toYoteiLocationApiSlug(z.location) === locSlug) ??
         rows.find((z) => z.location === locSlug);
       const locKey = row ? row.location : locSlug;
-      const zoneRu = resolveYoteiZone(labels, locKey, 'ru', map_slug) || locKey;
       const spawnSlug =
         spawnCanon === 'left' || spawnCanon === 'middle' || spawnCanon === 'right'
           ? spawnCanon
@@ -413,9 +351,7 @@ export function canonicalToDraft(canonical, labels) {
         : [];
       draft.waves[waveKey][String(s)] = {
         zone_en: locKey,
-        zone_ru: zoneRu,
         spawn_en: spawnSlug,
-        spawn_ru: row && spawnSlug ? labelForYoteiSpawnSlug(row, spawnSlug, 'ru') : '',
         attunements,
       };
     }
@@ -510,36 +446,6 @@ export function normalizeYoteiApiJsonForEmbeds(apiJson, labels) {
     return filtered.length > 0 ? { week_start_unix, maps: filtered } : null;
   }
   return null;
-}
-
-/**
- * @param {{ url?: string, token: string, timeoutMs?: number }} opts
- * @returns {Promise<{ ok: boolean, status: number, data: unknown }>}
- */
-export async function fetchYoteiRotationRead(opts) {
-  const url = (opts.url ?? getYoteiRotationReadUrl()).replace(/\/$/, '');
-  const token = String(opts.token ?? '').trim();
-  const timeoutMs = opts.timeoutMs ?? 15_000;
-
-  const res = await fetch(url, {
-    method: 'GET',
-    signal: AbortSignal.timeout(timeoutMs),
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const text = await res.text();
-  /** @type {unknown} */
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = null;
-  }
-
-  return { ok: res.ok, status: res.status, data };
 }
 
 /**

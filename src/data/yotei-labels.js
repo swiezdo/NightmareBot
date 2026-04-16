@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import { ROTATION_YOTEI_EN_PATH, ROTATION_YOTEI_RU_PATH } from '../paths.js';
 import { createEmptyYoteiDraft } from './rotation.js';
 
+/** @type {object | null} */
+let yoteiLabelsCache = null;
+
 /**
  * @typedef {{ week: number, roundChallenges: string[] | null }} YoteiMapWeekSchedule
  * @typedef {{ en: string, ru: string }} YoteiBilingual
@@ -178,6 +181,8 @@ function readJsonOptional(filePath) {
  * @returns {YoteiLabels}
  */
 export function loadYoteiLabels() {
+  if (yoteiLabelsCache) return yoteiLabelsCache;
+
   /** @type {YoteiLabels} */
   const empty = {
     maps: {},
@@ -190,7 +195,10 @@ export function loadYoteiLabels() {
 
   const rawEn = readJsonOptional(ROTATION_YOTEI_EN_PATH);
   const rawRu = readJsonOptional(ROTATION_YOTEI_RU_PATH);
-  if (rawEn == null && rawRu == null) return empty;
+  if (rawEn == null && rawRu == null) {
+    yoteiLabelsCache = empty;
+    return empty;
+  }
 
   const en = parseYoteiRotationRoot(rawEn);
   const ru = parseYoteiRotationRoot(rawRu);
@@ -275,7 +283,12 @@ export function loadYoteiLabels() {
 
   const cycleLength = parseCycleLength(rawEn) ?? parseCycleLength(rawRu);
 
-  return { maps, zones, zonesByMap, challengeCards, scheduleByMapSlug, cycleLength };
+  yoteiLabelsCache = { maps, zones, zonesByMap, challengeCards, scheduleByMapSlug, cycleLength };
+  return yoteiLabelsCache;
+}
+
+export function invalidateYoteiLabelsCache() {
+  yoteiLabelsCache = null;
 }
 
 /**

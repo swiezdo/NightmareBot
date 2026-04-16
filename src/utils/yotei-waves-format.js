@@ -219,7 +219,10 @@ function buildYoteiMainContent(mapRow, locale, creditText, labels, meta) {
   const weekRaw = Number(mapRow.week);
   const week = Number.isInteger(weekRaw) && weekRaw >= 1 && weekRaw <= 12 ? weekRaw : null;
   const lines = [];
-  if (week != null) lines.push(`> **Week #${week}**`);
+  if (week != null) {
+    const weekLine = t(locale, 'yotei_rotation_week_heading').replace('{n}', String(week));
+    lines.push(`> **${weekLine}**`);
+  }
   const weekRangeLine = buildWeekRangeLine(meta.weekStartUnix);
   if (weekRangeLine) lines.push(weekRangeLine);
   lines.push(`# ${title}`);
