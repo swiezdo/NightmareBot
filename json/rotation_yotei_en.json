@@ -65,7 +65,13 @@
             "spirit-healing-drunk"
           ]
         },
-        { "week": 7, "round_challenges": null },
+        { "week": 7, 
+          "round_challenges": [
+            "lose-location",
+            "lose-location",
+            "lose-location",
+            "lose-location"
+          ] },
         { "week": 11, "round_challenges": null }
       ]
     },
