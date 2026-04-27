@@ -31,7 +31,14 @@
             "lose-location"
           ]
         },
-        { "week": 8, "round_challenges": null },
+        { "week": 8, 
+          "round_challenges": [
+            "ghost-health-drain",
+            "spirit-healing-disabled",
+            "reviving-ghosts-much-longer",
+            "unique-enemy-ambush"
+          ] 
+        },
         { "week": 12, "round_challenges": null }
       ]
     },
@@ -219,6 +226,11 @@
       "slug": "attunement-suspendable",
       "line": "Сродство можно разорвать лишь на время",
       "emoji": "<:cards_attunement_suspendable:1493274343206293645>"
+    },
+    {
+      "slug": "spirit-healing-disabled",
+      "line": "Исцеление волей недоступно",
+      "emoji": "<:cards_spirit_healing_disabled:1498360698559008868>"
     }
   ]
 }
