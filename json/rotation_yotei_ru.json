@@ -121,7 +121,13 @@
             "unique-enemy-ambush"
           ]
         },
-        { "week": 9, "round_challenges": null }
+        { "week": 9, 
+        "round_challenges": [
+          "enemy-health-refill",
+          "extremely-fast-attacks",
+          "ranged-last-hit",
+          "hidden-health-bars"
+        ] }
       ]
     },
     {
@@ -231,6 +237,16 @@
       "slug": "spirit-healing-disabled",
       "line": "Исцеление волей недоступно",
       "emoji": "<:cards_spirit_healing_disabled:1498360698559008868>"
+    },
+    {
+      "slug": "enemy-health-refill",
+      "line": "Enemy health slowly refills",
+      "emoji": "<:cards_enemy_health_refill:1500886012887564419>"
+    },
+    {
+      "slug": "hidden-health-bars",
+      "line": "Enemy Health bars are hidden",
+      "emoji": "<:cards_hidden_health_bars:1500886043061260471>"
     }
   ]
 }
