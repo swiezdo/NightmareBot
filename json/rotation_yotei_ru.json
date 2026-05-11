@@ -247,12 +247,12 @@
     },
     {
       "slug": "enemy-health-refill",
-      "line": "Enemy health slowly refills",
+      "line": "Враги постепенно восстанавливают здоровье",
       "emoji": "<:cards_enemy_health_refill:1500886012887564419>"
     },
     {
       "slug": "hidden-health-bars",
-      "line": "Enemy Health bars are hidden",
+      "line": "Шкала здоровья врагов скрыта",
       "emoji": "<:cards_hidden_health_bars:1500886043061260471>"
     }
   ]
