@@ -168,7 +168,14 @@
             "attunement-suspendable",
             "attunement-suspendable"
           ] },
-        { "week": 10, "round_challenges": null }
+        { "week": 10, 
+        "round_challenges": [
+          "lose-location",
+          "lose-location",
+          "lose-location",
+          "lose-location"
+        ] 
+      }
       ]
     }
   ],
