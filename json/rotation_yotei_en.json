@@ -80,7 +80,14 @@
             "lose-location"
           ] 
         },
-        { "week": 11, "round_challenges": null }
+        { "week": 11, 
+        "round_challenges": [
+          "much-more-damage",
+          "hidden-glints",
+          "double-spirit-cost",
+          "unique-enemy-ambush"
+        ] 
+      }
       ]
     },
     {
@@ -254,6 +261,16 @@
       "slug": "hidden-health-bars",
       "line": "Enemy Health bars are hidden",
       "emoji": "<:cards_hidden_health_bars:1500886043061260471>"
+    },
+    {
+      "slug": "hidden-glints",
+      "line": "Attack glints are hidden",
+      "emoji": "<:cards_hidden_glints:1505969180917104751>"
+    },
+    {
+      "slug": "double-spirit-cost",
+      "line": "Spirit Attacks and Spirit Healing cost double",
+      "emoji": "<:cards_double_spirit_cost:1505970060663984342>"
     }
   ]
 }

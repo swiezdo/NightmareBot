@@ -79,7 +79,14 @@
             "lose-location",
             "lose-location"
           ] },
-        { "week": 11, "round_challenges": null }
+        { "week": 11, 
+        "round_challenges": [
+          "much-more-damage",
+          "hidden-glints",
+          "double-spirit-cost",
+          "unique-enemy-ambush"
+        ] 
+      }
       ]
     },
     {
@@ -254,6 +261,16 @@
       "slug": "hidden-health-bars",
       "line": "Шкала здоровья врагов скрыта",
       "emoji": "<:cards_hidden_health_bars:1500886043061260471>"
+    },
+    {
+      "slug": "hidden-glints",
+      "line": "Вспышки при атаках врагов отключены",
+      "emoji": "<:cards_hidden_glints:1505969180917104751>"
+    },
+    {
+      "slug": "double-spirit-cost",
+      "line": "Стоимость волевых атак и исцеления волей увеличена вдвое",
+      "emoji": "<:cards_double_spirit_cost:1505970060663984342>"
     }
   ]
 }

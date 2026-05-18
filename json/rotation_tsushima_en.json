@@ -341,7 +341,8 @@
             {
                 "zone": "Cliff",
                 "spawns": [
-                    "Forest",
+                    "Forest R",
+                    "Forest L",
                     "Hut"
                 ]
             },
