@@ -39,7 +39,14 @@
             "unique-enemy-ambush"
           ] 
         },
-        { "week": 12, "round_challenges": null }
+        { "week": 12, 
+        "round_challenges": [
+          "increased-onibi-damage",
+          "increased-onibi-damage",
+          "increased-onibi-damage",
+          "increased-onibi-damage"
+        ] 
+      }
       ]
     },
     {
@@ -271,6 +278,11 @@
       "slug": "double-spirit-cost",
       "line": "Spirit Attacks and Spirit Healing cost double",
       "emoji": "<:cards_double_spirit_cost:1505970060663984342>"
+    },
+    {
+      "slug": "increased-onibi-damage",
+      "line": "Onibi damage is greatly increased",
+      "emoji": "<:cards_increased_onibi_damage:1508493049838436572>"
     }
   ]
 }
